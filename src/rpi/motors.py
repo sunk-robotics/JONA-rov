@@ -6,7 +6,7 @@ import time
 class Motors:
     def __init__(self):
         self.kit = ServoKit(channels=16, reference_clock_speed=26541466)
-        self.motor_velocities = [0, 0, 0, 0, 0, 0]
+        self.motor_velocities = [0, 0, 0, 0, 0, 0, 0, 0]
         self.speed_limit = 0.5
         # set the correct pulse range (1100 microseconds to 1900 microseconds)
         for i in range(6):
@@ -45,6 +45,8 @@ class Motors:
         # negative velocity - ROV moves down
         self.motor_velocities[4] += velocity
         self.motor_velocities[5] += velocity
+        self.motor_velocities[6] += velocity
+        self.motor_velocities[7] += velocity
 
     # turn the ROV left or right
     def calc_yaw_velocity(self, velocity: float):
@@ -55,19 +57,30 @@ class Motors:
         self.motor_velocities[2] -= velocity
         self.motor_velocities[3] += velocity
 
+    # make the ROV pitch upward or downward
+    def calc_pitch_velocity(self, velocity: float):
+        # positive velocity - ROV pitches up
+        # negative velocity - ROV pitches down
+        self.motor_velocities[4] += velocity
+        self.motor_velocities[5] += velocity
+        self.motor_velocities[6] -= velocity
+        self.motor_velocities[7] -= velocity
+
     # make the ROV do a barrel roll
     def calc_roll_velocity(self, velocity: float):
         # positive velocity - ROV rolls to the right, maybe
         # negative velocity - ROV rolls to the left, maybe
         self.motor_velocities[4] -= velocity
         self.motor_velocities[5] += velocity
+        self.motor_velocities[6] -= velocity
+        self.motor_velocities[7] += velocity
 
     def stop_all(self):
-        for motor_num in range(6):
+        for motor_num in range(len(self.motor_velocities)):
             self.drive_motor(motor_num, 0)
 
     def drive_motors(self, x_velocity=0, y_velocity=0, z_velocity=0,
-                     yaw_velocity=0, roll_velocity=0):
+                     yaw_velocity=0, pitch_velocity=0, roll_velocity=0):
         # reset all the velocities to 0
         for i in range(len(self.motor_velocities)):
             self.motor_velocities[i] = 0
@@ -76,19 +89,20 @@ class Motors:
         self.calc_y_velocity(y_velocity)
         self.calc_z_velocity(z_velocity)
         self.calc_yaw_velocity(yaw_velocity)
+        self.calc_pitch_velocity(pitch_velocity)
         self.calc_roll_velocity(roll_velocity)
 
-        for i in range(len(self.motor_velocities)):
-            if self.motor_velocities[i] > self.speed_limit:
-                self.motor_velocities[i] = self.speed_limit
-            elif self.motor_velocities[i] < -self.speed_limit:
-                self.motor_velocities[i] = -self.speed_limit
+        for motor_num in range(len(self.motor_velocities)):
+            if self.motor_velocities[motor_num] > self.speed_limit:
+                self.motor_velocities[motor_num] = self.speed_limit
+            elif self.motor_velocities[motor_num] < -self.speed_limit:
+                self.motor_velocities[motor_num] = -self.speed_limit
 
         for motor_num, velocity in enumerate(self.motor_velocities):
             self.drive_motor(motor_num, velocity)
 
     def test_motors(self):
-        for motor_num in range(6):
+        for motor_num in range(len(self.motor_velocities)):
             self.drive_motor(motor_num, 0.15)
             time.sleep(0.5)
             self.drive_motor(motor_num, 0)

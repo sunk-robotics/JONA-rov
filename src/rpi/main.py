@@ -135,9 +135,17 @@ async def main_server():
     # adjust the y-velocity to have the ROV remain at a constant depth
     vertical_pid = PID()
 
+    yaw_anchor = False
+    # adjust the yaw velocity to keep the ROV stable
+    yaw_pid = PID()
+
     roll_anchor = False
     # adjust the roll velocity to keep the ROV stable
     roll_pid = PID()
+
+    pitch_anchor = False
+    # adjust the pitch velocity to keep the ROV stable
+    pitch_pid = PID()
 
     # multiplier for velocity to set speed limit
     speed_factor = 0.5
@@ -150,6 +158,7 @@ async def main_server():
         "y_velocity": 0,
         "z_velocity": 0,
         "yaw_velocity": 0,
+        "pitch_velocity": 0,
         "roll_velocity": 0
     }
 
@@ -157,6 +166,8 @@ async def main_server():
     prev_speed_toggle = None
     prev_vertical_anchor_toggle = None
     prev_roll_anchor_toggle = None
+    prev_pitch_anchor_toggle = None
+    prev_yaw_anchor_toggle = None
     prev_motor_lock_toggle = None
 
     if not depth_sensor.init():
@@ -173,29 +184,39 @@ async def main_server():
             await asyncio.sleep(0.01)
             continue
 
-        x_velocity = joystick_data["left_stick"][0] * speed_factor
-        # the joystick interprets up as -1 and down as 1, the negative just
-        # reverses this so up is 1 and down is -1
+        x_velocity = joystick_data["right_stick"][0] * speed_factor
         y_velocity = joystick_data["left_stick"][1] * speed_factor
-        z_velocity = -joystick_data["right_stick"][1] * speed_factor
-        yaw_velocity = joystick_data["right_stick"][0] * speed_factor
+        z_velocity = joystick_data["right_stick"][1] * speed_factor
+        yaw_velocity = joystick_data["left_stick"][0] * speed_factor
+        pitch_velocity = joystick_data["dpad"][1] * speed_factor
         roll_velocity = joystick_data["dpad"][0] * speed_factor
-        speed_toggle = joystick_data["dpad"][1]
+        speed_toggle = (joystick_data["right_bumper"]
+                        - joystick_data["left_bumper"])
         vertical_anchor_toggle = joystick_data["buttons"]["north"]
         roll_anchor_toggle = joystick_data["buttons"]["east"]
-        motor_lock_toggle = joystick_data["buttons"]["west"]
+        pitch_anchor_toggle = joystick_data["buttons"]["south"]
+        yaw_anchor_toggle = joystick_data["buttons"]["west"]
+        motor_lock_toggle = joystick_data["buttons"]["start"]
 
         if motor_lock:
             x_velocity = locked_velocities["x_velocity"]
             y_velocity = locked_velocities["y_velocity"]
             z_velocity = locked_velocities["z_velocity"]
             yaw_velocity = locked_velocities["yaw_velocity"]
+            pitch_velocity = locked_velocities["pitch_velocity"]
             roll_velocity = locked_velocities["roll_velocity"]
 
         # set the z velocity according to the vertical PID controller based on
         # current depth
         if vertical_anchor:
             z_velocity = vertical_pid.compute(depth_sensor.depth())
+
+        # set the yaw velocity according to the yaw PID controller based on
+        # current yaw angle
+        if yaw_anchor:
+            yaw_angle = imu.euler[1]
+            if yaw_angle is not None:
+                yaw_velocity = yaw_pid.compute(yaw_angle)
 
         # set the roll velocity according to the roll PID controller based on
         # current roll angle
@@ -204,8 +225,15 @@ async def main_server():
             if roll_angle is not None:
                 roll_velocity = roll_pid.compute(roll_angle)
 
+        # set the pitch velocity according to the pitch PID controller based on
+        # current pitch angle
+        if pitch_anchor:
+            pitch_angle = imu.euler[2]
+            if pitch_angle is not None:
+                pitch_velocity = pitch_pid.compute(pitch_angle)
+
         motors.drive_motors(x_velocity, y_velocity, z_velocity, yaw_velocity,
-                            roll_velocity)
+                            pitch_velocity, roll_velocity)
 
         # increase or decrease speed when the dpad buttons are pressed
         if speed_toggle != prev_speed_toggle:
@@ -235,6 +263,18 @@ async def main_server():
                                    integral_gain=0.05, derivative_gain=0.01)
                 print(f"Vertical anchor enabled at: {vertical_anchor_depth} m")
 
+        # toggle the yaw anchor
+        if yaw_anchor_toggle and not prev_yaw_anchor_toggle:
+            if yaw_anchor:
+                print("Pitch anchor disabled!")
+            elif depth_sensor is not None:
+                yaw_anchor = True
+                yaw_anchor_angle = imu.euler[2]
+                # TODO - Need to tune PID parameters
+                yaw_pid = PID(yaw_anchor_angle, proportional_gain=0,
+                              integral_gain=0, derivative_gain=0)
+                print(f"Pitch anchor enabled at: {yaw_anchor_angle}°")
+
         # toggle the roll anchor
         if roll_anchor_toggle and not prev_roll_anchor_toggle:
             if roll_anchor:
@@ -247,6 +287,18 @@ async def main_server():
                                integral_gain=0.001, derivative_gain=0.0e-4)
                 print(f"Roll anchor enabled at: {roll_anchor_angle}°")
 
+        # toggle the pitch anchor
+        if pitch_anchor_toggle and not prev_pitch_anchor_toggle:
+            if pitch_anchor:
+                print("Pitch anchor disabled!")
+            elif depth_sensor is not None:
+                pitch_anchor = True
+                pitch_anchor_angle = imu.euler[2]
+                # TODO - Need to tune PID parameters
+                pitch_pid = PID(pitch_anchor_angle, proportional_gain=0,
+                                integral_gain=0, derivative_gain=0)
+                print(f"Pitch anchor enabled at: {pitch_anchor_angle}°")
+
         # toggle the motor lock
         if motor_lock_toggle and not prev_motor_lock_toggle:
             if motor_lock:
@@ -258,6 +310,7 @@ async def main_server():
                 locked_velocities["y_velocity"] = y_velocity
                 locked_velocities["z_velocity"] = z_velocity
                 locked_velocities["yaw_velocity"] = yaw_velocity
+                locked_velocities["pitch_velocity"] = pitch_velocity
                 locked_velocities["roll_velocity"] = roll_velocity
                 print("Motor lock enabled!")
 
@@ -282,4 +335,3 @@ if __name__ == '__main__':
         main()
     except KeyboardInterrupt:
         print('')
-
