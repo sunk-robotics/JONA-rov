@@ -40,8 +40,8 @@ class Motors:
         # throttle reverse and 180 degrees is full throttle forward
         angle = int(velocity * 90) + 90
         # motor 0 has a shitty connection
-        if motor_num == 0:
-            return
+        #  if motor_num == 0:
+        #      return
         self.kit.servo[self.motor_channel_table[motor_num]].angle = angle
 
     # move the ROV left or right
@@ -126,7 +126,7 @@ class Motors:
 
     def test_motors(self):
         for motor_num in range(self.num_motors):
-            self.drive_motor(motor_num, 0.15)
+            self.drive_motor(motor_num, 0.3)
             print(f"Testing motor: {motor_num}")
             time.sleep(2)
             self.drive_motor(motor_num, 0)
@@ -135,10 +135,11 @@ class Motors:
 
 def main():
     motors = Motors()
-    motors.test_motors()
+    motors.drive_motor(4, 0.3)
+    #  motors.test_motors()
     #  motors.drive_motor(7, 0.15)
-    #  time.sleep(3)
-    #  motors.stop_all()
+    time.sleep(5)
+    motors.stop_all()
     #  motors.drive_motors(z_velocity=0.5)
     #  time.sleep(2)
     #  motors.drive_motors()
