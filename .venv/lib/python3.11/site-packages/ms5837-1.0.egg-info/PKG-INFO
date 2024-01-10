@@ -1,0 +1,7 @@
+Metadata-Version: 2.1
+Name: ms5837
+Version: 1.0
+Summary: Interfaces with MS5837-30BA and MS5837-02BA waterproof pressure and temperature sensors
+Home-page: https://github.com/bluerobotics/ms5837-python
+Author: Blue Robotics
+License-File: LICENSE

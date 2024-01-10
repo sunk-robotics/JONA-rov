@@ -5,13 +5,33 @@ import time
 
 class Motors:
     def __init__(self):
-        self.kit = ServoKit(channels=16, reference_clock_speed=26541466)
+        # After calibrating with the oscilloscope, the correct reference clock
+        # speed for the particular PCA9685 should be 24.5 MHz, rather than the
+        # standard 25 MHz. If the motors don't work for some reason, check the
+        # reference clock.
+        self.kit = ServoKit(channels=16, reference_clock_speed=24_500_000)
+        self.num_motors = 8
+        # a table that maps the motor number to the correct channel on the PWM
+        # controller
+        self.motor_channel_table = {
+            0: 10,
+            1: 9,
+            2: 14,
+            3: 12,
+            4: 13,
+            5: 8,
+            6: 11,
+            7: 15,
+        }
         self.motor_velocities = [0, 0, 0, 0, 0, 0, 0, 0]
         self.speed_limit = 0.5
         # set the correct pulse range (1100 microseconds to 1900 microseconds)
-        for i in range(6):
-            self.kit.servo[i].set_pulse_width_range(1100, 1900)
+        for motor_num in range(self.num_motors):
+            self.kit.servo[self.motor_channel_table[motor_num]]\
+                .set_pulse_width_range(1100, 1900)
         self.stop_all()
+        # each motors needs to receive a neutral signal for at least two
+        # seconds, otherwise they won't work
         time.sleep(2)
 
     def drive_motor(self, motor_num: int, velocity: float):
@@ -19,7 +39,10 @@ class Motors:
         # 1 is full throttle forward to an angle where 0 degrees is full
         # throttle reverse and 180 degrees is full throttle forward
         angle = int(velocity * 90) + 90
-        self.kit.servo[motor_num].angle = angle
+        # motor 0 has a shitty connection
+        #  if motor_num == 0:
+        #      return
+        self.kit.servo[self.motor_channel_table[motor_num]].angle = angle
 
     # move the ROV left or right
     def calc_x_velocity(self, velocity: float):
@@ -102,18 +125,24 @@ class Motors:
             self.drive_motor(motor_num, velocity)
 
     def test_motors(self):
-        for motor_num in range(len(self.motor_velocities)):
-            self.drive_motor(motor_num, 0.15)
-            time.sleep(0.5)
+        for motor_num in range(self.num_motors):
+            self.drive_motor(motor_num, 0.3)
+            print(f"Testing motor: {motor_num}")
+            time.sleep(2)
             self.drive_motor(motor_num, 0)
+        self.stop_all()
 
 
 def main():
     motors = Motors()
+    motors.drive_motor(4, 0.3)
     #  motors.test_motors()
-    motors.drive_motors(z_velocity=0.5)
-    time.sleep(2)
-    motors.drive_motors()
+    #  motors.drive_motor(7, 0.15)
+    time.sleep(5)
+    motors.stop_all()
+    #  motors.drive_motors(z_velocity=0.5)
+    #  time.sleep(2)
+    #  motors.drive_motors()
 
 
 if __name__ == "__main__":

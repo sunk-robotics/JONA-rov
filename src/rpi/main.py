@@ -184,14 +184,19 @@ async def main_server():
             await asyncio.sleep(0.01)
             continue
 
+        print(f"Depth: {depth_sensor.depth() * 100:2f}cm")
+        print(imu.euler[0])
+        print(imu.euler[1])
+        print(imu.euler[2])
         x_velocity = joystick_data["right_stick"][0] * speed_factor
         y_velocity = joystick_data["left_stick"][1] * speed_factor
         z_velocity = joystick_data["right_stick"][1] * speed_factor
         yaw_velocity = joystick_data["left_stick"][0] * speed_factor
         pitch_velocity = joystick_data["dpad"][1] * speed_factor
         roll_velocity = joystick_data["dpad"][0] * speed_factor
-        speed_toggle = (joystick_data["right_bumper"]
-                        - joystick_data["left_bumper"])
+        #  speed_toggle = (joystick_data["right_bumper"]
+                        #  - joystick_data["left_bumper"])
+        speed_toggle = False
         vertical_anchor_toggle = joystick_data["buttons"]["north"]
         roll_anchor_toggle = joystick_data["buttons"]["east"]
         pitch_anchor_toggle = joystick_data["buttons"]["south"]

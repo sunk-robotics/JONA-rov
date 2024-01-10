@@ -99,7 +99,7 @@ def main():
     motors.test_motors()
     #  motors.drive_motor(5, 0.5)
     #  motors.drive_motors(z_velocity=0.5)
-    #  time.sleep(5)
+    time.sleep(5)
     motors.drive_motors()
 
 
