@@ -8,6 +8,7 @@ def five_day_max(sturgeon_data: list[int]) -> tuple[int, tuple[int]]:
     if len(sturgeon_data) < 5:
         return sum(sturgeon_data)
     five_day_max = 0
+    day_range = 
     for i in range(len(sturgeon_data) - 5):
         if sum(sturgeon_data[i:i + 5]) > five_day_max:
             five_day_max = sum(sturgeon_data[i:i + 5])
