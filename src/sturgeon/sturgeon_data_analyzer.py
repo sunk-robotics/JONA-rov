@@ -4,11 +4,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 from pprint import pprint
 
-def five_day_max(sturgeon_data: list[int]) -> int:
+def five_day_max(sturgeon_data: list[int]) -> tuple[int, tuple[int]]:
     if len(sturgeon_data) < 5:
         return sum(sturgeon_data)
     five_day_max = 0
-    for i in sturgeon_data[:-5]:
+    for i in range(len(sturgeon_data) - 5):
         if sum(sturgeon_data[i:i + 5]) > five_day_max:
             five_day_max = sum(sturgeon_data[i:i + 5])
 
@@ -26,28 +26,29 @@ def main():
                 continue
             sturgeon_data.append([int(i) for i in row])
 
-    pprint(sturgeon_data)
-    data = np.column_stack((sturgeon_data[0], sturgeon_data[1], sturgeon_data[2]))
+    best_receiver = 0
+    sturgeon_count = 0
+    day_range = (0, 0)
+    for receiver_num, receiver_data in enumerate(sturgeon_data):
+        if five_day_max(receiver_data) > sturgeon_count:
+            best_receiver = receiver_num + 1
+            sturgeon_count = five_day_max(receiver_data)
+            day_range = ()
 
-    pprint(data)
-    print(sturgeon_data[0])
-    print(five_day_max(sturgeon_data[0]))
+    print(f"Potential Spawning Location: Receiver {best_receiver}")
 
     fig, ax = plt.subplots()
 
     ax.set_title("Number of sturgeon detected at each receiver over time")
-    ax.set_ylabel("# of sturgeon")
+    ax.set_ylabel("Number of sturgeon")
     ax.set_xlim([1, 15])
-    ax.set_ylim([0, 15])
-    ax.set_xlabel("Time (Day)")
+    ax.set_xlabel("Time (day)")
     ax.plot(np.arange(15), sturgeon_data[0])
 
-    ax.plot(sturgeon_data[0], linewidth=3.0)
-    ax.plot(sturgeon_data[1], linewidth=3.0)
-    ax.plot(sturgeon_data[2], linewidth=3.0)
-    #  ax.set(xlim=(1, 15), xticks=np.arange(1, 15),
-    #         ylim=(0, 15), yticks=np.arange(1, 15))
-    ax.plot(np.arange(15), sturgeon_data[2])
+    ax.plot(sturgeon_data[0], linewidth=3.0, label="Receiver 1")
+    ax.plot(sturgeon_data[1], linewidth=3.0, label="Receiver 2")
+    ax.plot(sturgeon_data[2], linewidth=3.0, label="Receiver 3")
+    ax.legend(loc="upper right")
     plt.show()
     #  np.random.seed(42)
 
