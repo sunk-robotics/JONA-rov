@@ -1,19 +1,20 @@
 import csv
-import math
 import matplotlib.pyplot as plt
 import numpy as np
 from pprint import pprint
+
 
 def five_day_max(sturgeon_data: list[int]) -> tuple[int, tuple[int]]:
     if len(sturgeon_data) < 5:
         return sum(sturgeon_data)
     five_day_max = 0
-    day_range = 
+    day_range = (0, 0)
     for i in range(len(sturgeon_data) - 5):
         if sum(sturgeon_data[i:i + 5]) > five_day_max:
             five_day_max = sum(sturgeon_data[i:i + 5])
+            day_range = (i + 1, i + 5)
 
-    return five_day_max
+    return five_day_max, day_range
 
 
 def main():
@@ -31,12 +32,12 @@ def main():
     sturgeon_count = 0
     day_range = (0, 0)
     for receiver_num, receiver_data in enumerate(sturgeon_data):
-        if five_day_max(receiver_data) > sturgeon_count:
+        if five_day_max(receiver_data)[0] > sturgeon_count:
             best_receiver = receiver_num + 1
-            sturgeon_count = five_day_max(receiver_data)
-            day_range = ()
+            sturgeon_count, day_range = five_day_max(receiver_data)
 
     print(f"Potential Spawning Location: Receiver {best_receiver}")
+    print(f"Day Range: Day {day_range[0]} - Day {day_range[1]}")
 
     fig, ax = plt.subplots()
 
@@ -50,22 +51,31 @@ def main():
     ax.plot(sturgeon_data[1], linewidth=3.0, label="Receiver 2")
     ax.plot(sturgeon_data[2], linewidth=3.0, label="Receiver 3")
     ax.legend(loc="upper right")
+
+    plt.text(0.5, -0.2,
+             'Potential Spawning Location:',
+             horizontalalignment='center',
+             verticalalignment='center', transform=ax.transAxes,
+             size=10)
+
+    if best_receiver == 1:
+        receiver_text_color = "orange"
+    elif best_receiver == 2:
+        receiver_text_color = "green"
+    else:
+        receiver_text_color = "red"
+    plt.text(0.5, -0.27,
+             f'Receiver {best_receiver}',
+             horizontalalignment='center',
+             verticalalignment='center', transform=ax.transAxes,
+             color=receiver_text_color, size=10)
+    plt.text(0.5, -0.34,
+             f'Day {day_range[0]} - Day {day_range[1]}',
+             horizontalalignment='center',
+             verticalalignment='center', transform=ax.transAxes,
+             color=receiver_text_color, size=10)
+    fig.tight_layout()
     plt.show()
-    #  np.random.seed(42)
-
-
-    #  rng = np.arange(50)
-    #  rnd = np.random.randint(0, 10, size=(3, rng.size))
-    #  yrs = 1950 + rng
-
-    #  fig, ax = plt.subplots(figsize=(5, 3))
-    #  ax.stackplot(yrs, rng + rnd, labels=["Eastasia", "Eurasia", "Oceania"])
-    #  ax.set_title("Combined debt growth over time")
-    #  ax.legend(loc="upper left")
-    #  ax.set_ylabel("Total debt")
-    #  ax.set_xlim(xmin=yrs[0], xmax=yrs[-1])
-    #  fig.tight_layout()
-    #  plt.show()
 
 
 if __name__ == "__main__":
