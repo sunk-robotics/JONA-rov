@@ -1,220 +1,196 @@
-import time
 from cadquery import (
-    exporters,
     importers,
     Assembly,
     Color,
     Location,
-    Plane,
-    Solid,
     Vector,
     Workplane,
 )
 
 
-def left_tubes(length: int) -> Workplane:
+def make_left_pipes(length: float) -> Workplane:
+    pvc_radius = 10.766
     # center to center width
     width = 332.111
     # center to center height
     height = 132.165
 
-    total_width = 360.0
+    #  total_width = 360.0
     total_height = 160.054
 
     # total height 160.054
     # total width 360.000
     # padding 13.945
-    rv = (
+    return (
         Workplane("YZ")
-        .rect(width, height, forConstruction=True)
+        .rect(width, total_height - pvc_radius / 2, forConstruction=True)
         .vertices("<Y and <X")
         .tag("bottom_left")
+        .translate(Vector(-length, 0, 0))
+        .tag("bottom_back_left")
         .end()
+        .end()
+        .rect(width, height, forConstruction=True)
         .vertices()
-        # pvc radius
-        .circle(10.766)
+        .circle(pvc_radius)
         .extrude(-length)
     )
-    return rv
 
 
-def right_tubes(length: int) -> Workplane:
-    length = 332.111
+def make_right_pipes(length: float) -> Workplane:
+    pvc_radius = 10.766
+    # center to center width
+    width = 332.111
+    # center to center height
     height = 290.805
 
-    # total height 318.694
+    total_height = 318.694
     # total length 360.000
     return (
         Workplane("YZ")
-        .rect(length, height, forConstruction=True)
-        .circle(12)
-        .extrude(-length)
+        .rect(width, total_height - pvc_radius / 2, forConstruction=True)
+        .vertices("<Y and <X")
+        .tag("bottom_left")
+        .translate(Vector(length, 0, 0))
+        .tag("bottom_back_left")
+        .end()
+        .end()
+        .rect(width, height, forConstruction=True)
+        .vertices()
+        .circle(pvc_radius)
+        .extrude(length)
     )
 
 
-def top_tubes(length: int) -> Workplane:
+def make_top_pipes(height: float) -> Workplane:
+    pvc_radius = 10.766
     # center to center length
     length = 346.5
     # center to center width
     width = 332.111
 
-    # total length 374.389
-    # total width 360.000
+    total_length = 374.389
+    #  total_width = 360.000
 
     return (
-        Workplane("YZ")
-        .rect(length, height, forConstruction=True)
+        Workplane("XY")
+        .rect(
+            total_length - pvc_radius / 2,
+            width,
+            forConstruction=True,
+        )
+        .vertices(">Y and >X")
+        .tag("bottom_anchor_point")
+        .translate(Vector(0, 0, height))
+        .tag("top_anchor_point")
+        .end()
+        .end()
+        .rect(length, width, forConstruction=True)
         .vertices()
         .circle(12)
-        .extrude(-length)
+        .extrude(height)
     )
 
 
-#  left_length = 450
-#  right_length = 600
-#  top_height = 600
+def make_coral_restoration_site(
+    left_length: float, right_length: float, top_length: float
+) -> Assembly:
+    # import all the assets
+    left_end = importers.importStep("assets/left_end.step")
+    right_end = importers.importStep("assets/right_end.step")
+    top_end = importers.importStep("assets/top_end_no_coral.step")
+    center_box = importers.importStep("assets/center_box.step")
+    coral = importers.importStep("assets/coral.step")
 
-#  left_side_length = 60
-#  left_side_width = 360
-#  left_side_height = 160
-#  left_side = Workplane().box(
-#      left_side_length, left_side_width, left_side_height
-#  )
-start_time = time.time()
-left_side = importers.importStep("assets/left_side.step")
+    # the variable length pipes that connect the ends to the center box
+    left_pipes = make_left_pipes(left_length)
+    right_pipes = make_right_pipes(right_length)
+    top_pipes = make_top_pipes(top_length)
 
-#  right_side_length = 60
-#  right_side_width = 360
-#  right_side_height = 320
-#  right_side = Workplane().box(
-#      right_side_length, right_side_width, right_side_height
-#  )
-right_side = importers.importStep("assets/right_side.step")
-
-#  center_box_length = 410
-#  center_box_width = 360
-#  center_box_height = 400
-#  center_box = Workplane().box(
-#      center_box_length, center_box_width, center_box_height
-#  )
-center_box = importers.importStep("assets/center_box.step")
-end_time = time.time()
-print(f"Imported in {end_time - start_time}s")
-
-#  top_side_length = 360
-#  top_side_width = 410
-#  top_side_height = 60
-#  top_side = Workplane().box(top_side_length, top_side_width, top_side_height)
-#  top_side = importers.importStep("assets/top_side.step")
-
-start_time = time.time()
-assembly = (
-    Assembly().add(
-        center_box,
-        name="center_box",
-        loc=Location(Vector(0, 0, 0)),
-        color=Color("red"),
+    return (
+        Assembly()
+        .add(
+            center_box,
+            name="center_box",
+            loc=Location(Vector(0, 0, 0)),
+        )
+        .add(left_end, name="left_end")
+        .add(right_end, name="right_end")
+        .add(left_pipes, name="left_pipes")
+        .add(right_pipes, name="right_pipes")
+        .add(top_end, name="top_end")
+        .add(top_pipes, name="top_pipes")
+        .add(
+            coral,
+            name="coral",
+            color=Color(222 / 256, 74 / 256, 124 / 256),
+        )
+        # the center box shouldn't move
+        .constrain("center_box", "Fixed")
+        # left end
+        # make sure the left end and the left pipes don't rotate
+        .constrain("left_end", "FixedRotation", (0, 0, 0))
+        .constrain("left_pipes", "FixedRotation", (0, 0, 0))
+        # connect the left end to the left pipes
+        .constrain(
+            "left_end@vertices@>(1, -1, -1)",
+            "left_pipes?bottom_back_left",
+            "Point",
+        )
+        # connect the left pipes to the center box
+        .constrain(
+            "left_pipes?bottom_left",
+            "center_box@vertices@>(-1, -1, -1)",
+            "Point",
+        )
+        # right end
+        .constrain("right_end", "FixedRotation", (0, 0, 0))
+        .constrain("right_pipes", "FixedRotation", (0, 0, 0))
+        # connect the right end to the right pipes
+        .constrain(
+            "right_end@vertices@>(-1, -1, -1)",
+            "right_pipes?bottom_back_left",
+            "Point",
+        )
+        # connect the right pipes to the center box
+        .constrain(
+            "right_pipes?bottom_left",
+            "center_box@vertices@>(1, -1, -1)",
+            "Point",
+        )
+        .constrain("right_pipes", "FixedRotation", (0, 0, 0))
+        # top end
+        .constrain("top_end", "FixedRotation", (0, 0, 0))
+        .constrain("top_pipes", "FixedRotation", (0, 0, 0))
+        # connect the top end to the top pipes
+        .constrain(
+            "top_end@vertices@>(1, 1, -1)",
+            "top_pipes?top_anchor_point",
+            "Point",
+        )
+        # connect the top pipes to the center box
+        .constrain(
+            "top_pipes?bottom_anchor_point",
+            "center_box@vertices@>(1, 1, 1)",
+            "Point",
+        )
+        .constrain("coral", "FixedRotation", (0, 0, 0))
+        # center the coral in the middle of the top end
+        .constrain("coral@faces@<Z", "top_end@vertices@>(-1, -1, 1)", "Point")
+        .constrain("coral@faces@<Z", "top_end@vertices@>(-1, 1, 1)", "Point")
+        .constrain("coral@faces@<Z", "top_end@vertices@>(1, -1, 1)", "Point")
+        .constrain("coral@faces@<Z", "top_end@vertices@>(1, 1, 1)", "Point")
+        .solve()
     )
-    #  .add(
-    #      top_side,
-    #      name="top_side",
-    #      loc=Location(
-    #          Vector(0, 0, center_box_height / 2 + top_side_height / 2 + top_height)
-    #      ),
-    #      color=Color("teal"),
-    #  )
-    #  .add(
-    #      left_side,
-    #      name="left_side",
-    #      #  loc=Location(
-    #      #      Vector(
-    #      #          -(center_box_length / 2 + left_side_length / 2 + left_length),
-    #      #          -(left_side_width / 2),
-    #      #          -(center_box_height / 2 - left_side_height / 2),
-    #      #      )
-    #      #  ),
-    #      color=Color("green"),
-    #  )
-    #  .add(
-    #      right_side,
-    #      name="right_side",
-    #      #  loc=Location(
-    #      #      Vector(
-    #      #          center_box_length / 2 + right_side_length / 2 + right_length,
-    #      #          -(right_side_width / 2),
-    #      #          -(center_box_height / 2 - right_side_height / 2),
-    #      #      )
-    #      #  ),
-    #  )
-    .add(left_tubes(200), name="left_tubes")
-    #  .add(right_tubes(80), name="right_tubes")
-)
-end_time = time.time()
-print(f"Assembled in {end_time - start_time}s")
-
-start_time = time.time()
-#  assembly.constrain(
-#      "right_side@vertices@>(1, -1, -1)",
-#      "center_box@vertices@>(1, -1, -1)",
-#      "Point",
-#  )
-#  assembly.constrain(
-#      "left_side@vertices@>(-1, -1, -1)",
-#      "left_tubes@vertices@>(-1, -1, -1)",
-#      "Point",
-#  )
-
-assembly.constrain("center_box", "Fixed")
-#  assembly.constrain(
-#      "left_tubes@vertices@>(1, -1, -1)",
-#      "center_box@vertices@>(-1, -1, -1)",
-#      "Point",
-#  )
-#  assembly.constrain(
-#      "left_tubes@edges@>X and <Z",
-#      "center_box@vertices@>(-1, 1, -1)",
-#      "Point",
-#  )
-assembly.constrain(
-    "left_tubes?bottom_left", "center_box@vertices@>(-1, -1, -1)", "Point"
-)
-assembly.constrain("left_tubes", "FixedRotation", (0, 0, 0))
-#  assembly.constrain(
-#      "left_tubes@vertices@>(1, 1, -1)",
-#      "center_box@vertices@>(-1, 1, -1)",
-#      "Point",
-#  )
-#  assembly.constrain(
-#      "left_tubes@faces@<X", "center_box@faces@<X", "Axis", param=0
-#  )
-#  assembly.constrain(
-#      "left_tubes@faces@<Y", "center_box@faces@<Y", "Axis", param=90
-#  )
-#  assembly.constrain(
-#      "left_tubes@faces@<Z", "center_box@faces@<Z", "Axis", param=90
-#  )
-
-#  assembly.constrain(
-#      "left_side@faces@<X", "center_box@faces@<X", "Axis", param=0
-#  )
-#  assembly.constrain(
-#      "left_side@faces@<Z", "center_box@faces@<Z", "Axis", param=0
-#  )
-#  assembly.constrain(
-#      "right_side@faces@<X", "center_box@faces@<X", "Axis", param=0
-#  )
-#  assembly.constrain(
-#      "right_side@faces@<Z", "center_box@faces@<Z", "Axis", param=0
-#  )
-end_time = time.time()
-print(f"Constrained in {end_time - start_time}")
-
-start_time = time.time()
-assembly.solve()
-end_time = time.time()
-print(f"Solved in {end_time - start_time}s")
-
-assembly.save("result.stl")
 
 
-#  exporters.export(assembly, "result.stl")
+def main():
+    output_file = "result.glb"
+    print("Creating model...")
+    coral_restoration_site = make_coral_restoration_site(400, 500, 400)
+    coral_restoration_site.save(output_file)
+    print(f"Outputted model to {output_file}")
+
+
+if __name__ == "__main__":
+    main()
