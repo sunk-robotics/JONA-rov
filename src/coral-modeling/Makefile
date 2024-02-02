@@ -1,3 +1,3 @@
 main:
 	python main.py
-	f3d result.glb
+	f3d result.stl
