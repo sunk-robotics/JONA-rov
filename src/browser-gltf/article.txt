@@ -1,0 +1,1 @@
+https://en.threejs-university.com/2021/08/04/loading-a-3d-glb-gltf-with-three-js-gltfloader/
