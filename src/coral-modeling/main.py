@@ -16,7 +16,6 @@ def make_left_pipes(length: float) -> Workplane:
     # center to center height
     height = 132.165
 
-    total_width = 360.0
     total_height = 160.054
 
     # total height 160.054
@@ -120,8 +119,17 @@ def make_right_platform(pipe_length: float) -> Workplane:
     return Workplane("XY").rect(length, width).extrude(height)
 
 
+def make_velcro_square() -> Workplane:
+    length = 150
+    width = 150
+    height = 2
+    return Workplane("XY").box(length, width, height)
+
+
 def make_coral_restoration_site(
-    left_length: float, right_length: float, top_length: float
+    left_length: float,
+    right_length: float,
+    top_length: float,
 ) -> Assembly:
     # import all the assets
     left_end = importers.importStep("assets/left_end.step")
@@ -138,7 +146,10 @@ def make_coral_restoration_site(
 
     # the platforms that sit on top of the sides
     left_platform = make_left_platform(left_length)
-    #  right_platform = make_right_platform(right_length)
+    right_platform = make_right_platform(right_length)
+
+    # the red velcro square where the brain coral is placed
+    velcro_square = make_velcro_square()
 
     return (
         Assembly()
@@ -154,6 +165,8 @@ def make_coral_restoration_site(
         .add(top_end, name="top_end")
         .add(top_pipes, name="top_pipes")
         .add(left_platform, name="left_platform")
+        .add(right_platform, name="right_platform")
+        .add(velcro_square, name="velcro_square", color=Color("red"))
         .add(
             coral,
             name="coral",
@@ -194,7 +207,6 @@ def make_coral_restoration_site(
             "center_box@vertices@>(1, -1, -1)",
             "Point",
         )
-        .constrain("right_pipes", "FixedRotation", (0, 0, 0))
         # top end
         .constrain("top_end", "FixedRotation", (0, 0, 0))
         .constrain("top_pipes", "FixedRotation", (0, 0, 0))
@@ -220,6 +232,50 @@ def make_coral_restoration_site(
         .constrain(
             "left_platform@vertices@>(-1, 1, -1)",
             "left_end@vertices@>(-1, 1, 1)",
+            "Point",
+        )
+        # place the right platform on top of the right end and pipes
+        .constrain("right_platform", "FixedRotation", (0, 0, 0))
+        .constrain(
+            "right_platform@vertices@>(1, -1, -1)",
+            "right_end@vertices@>(1, -1, 1)",
+            "Point",
+        )
+        .constrain(
+            "right_platform@vertices@>(1, 1, -1)",
+            "right_end@vertices@>(1, 1, 1)",
+            "Point",
+        )
+        # place the velcro square in the middle of the right platform
+        .constrain(
+            "velcro_square@vertices@>(-1, -1, -1)",
+            "right_platform@vertices@>(-1, -1, 1)",
+            "Point",
+        )
+        .constrain(
+            "velcro_square@vertices@>(-1, 1, -1)",
+            "right_platform@vertices@>(-1, 1, 1)",
+            "Point",
+        )
+        .constrain(
+            "velcro_square@vertices@>(1, -1, -1)",
+            "right_platform@vertices@>(1, -1, 1)",
+            "Point",
+        )
+        .constrain(
+            "velcro_square@vertices@>(1, 1, -1)",
+            "right_platform@vertices@>(1, 1, 1)",
+            "Point",
+        )
+        # the velcro square should be a little offset towards the right
+        .constrain(
+            "velcro_square@vertices@>(1, -1, -1)",
+            "right_platform@vertices@>(1, -1, 1)",
+            "Point",
+        )
+        .constrain(
+            "velcro_square@vertices@>(1, 1, -1)",
+            "right_platform@vertices@>(1, 1, 1)",
             "Point",
         )
         # center the coral in the middle of the top end
