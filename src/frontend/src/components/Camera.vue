@@ -22,20 +22,22 @@ import { onMounted, type Ref, ref } from 'vue';
         });
 
         let frame = decoder.decode().then((res: any) => {
-            ctx.drawImage(res.image, 0, 0)
+            ctx.drawImage(res.image, 0, 0, 1280, 720)
         })
     })
 </script>
 
 <template>
-    <canvas ref="canvas"></canvas>
+    <canvas ref="canvas" width=1280 height=720></canvas>
 </template>
 
 <style scoped>
     canvas {
-        height: 95%;
-        aspect-ratio: 16/9;
         background: url("smpte_color_bars.gif");
         background-size: cover;
+        aspect-ratio: 16/9;
+        margin-left: 0.5em;
+        margin-right: 0.5em;
+        width: 45vw;
     }
 </style>
