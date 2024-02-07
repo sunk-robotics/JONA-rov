@@ -10,24 +10,31 @@ from cadquery import (
 
 def make_left_pipes(length: float) -> Workplane:
     pvc_radius = 10.766
+    #  pvc_radius = 15
     # center to center width
     width = 332.111
     # center to center height
     height = 132.165
 
-    #  total_width = 360.0
     total_height = 160.054
 
     # total height 160.054
     # total width 360.000
-    # padding 13.945
+    padding = 13.945
     return (
         Workplane("YZ")
-        .rect(width, total_height - pvc_radius / 2, forConstruction=True)
+        .rect(
+            width,
+            total_height - pvc_radius / 2,
+            forConstruction=True,
+        )
         .vertices("<Y and <X")
         .tag("bottom_left")
-        .translate(Vector(-length, 0, 0))
-        .tag("bottom_back_left")
+        .end()
+        .vertices(">Y and >X")
+        .translate(Vector(-length, padding, height + pvc_radius))
+        #  .tag("bottom_back_left")
+        .tag("top_back_right")
         .end()
         .end()
         .rect(width, height, forConstruction=True)
@@ -50,9 +57,11 @@ def make_right_pipes(length: float) -> Workplane:
         Workplane("YZ")
         .rect(width, total_height - pvc_radius / 2, forConstruction=True)
         .vertices("<Y and <X")
-        .tag("bottom_left")
-        .translate(Vector(length, 0, 0))
-        .tag("bottom_back_left")
+        .tag("center_box_anchor_point")
+        .end()
+        .vertices(">Y and >X")
+        .translate(Vector(length, 0, total_height - pvc_radius / 4))
+        .tag("end_anchor_point")
         .end()
         .end()
         .rect(width, height, forConstruction=True)
@@ -87,13 +96,40 @@ def make_top_pipes(height: float) -> Workplane:
         .end()
         .rect(length, width, forConstruction=True)
         .vertices()
-        .circle(12)
+        .circle(pvc_radius)
         .extrude(height)
     )
 
 
+def make_left_platform(pipe_length: float) -> Workplane:
+    # need to add an additional 58mm to take into account the length of the
+    # tee and elbow
+    length = pipe_length + 58
+    width = 360
+    height = 8
+    return Workplane("XY").rect(length, width).extrude(height)
+
+
+def make_right_platform(pipe_length: float) -> Workplane:
+    # need to add an additional 58mm to take into account the length of the
+    # tee and elbow
+    length = pipe_length + 58
+    width = 360
+    height = 8
+    return Workplane("XY").rect(length, width).extrude(height)
+
+
+def make_velcro_square() -> Workplane:
+    length = 150
+    width = 150
+    height = 2
+    return Workplane("XY").box(length, width, height)
+
+
 def make_coral_restoration_site(
-    left_length: float, right_length: float, top_length: float
+    left_length: float,
+    right_length: float,
+    top_length: float,
 ) -> Assembly:
     # import all the assets
     left_end = importers.importStep("assets/left_end.step")
@@ -101,11 +137,19 @@ def make_coral_restoration_site(
     top_end = importers.importStep("assets/top_end_no_coral.step")
     center_box = importers.importStep("assets/center_box.step")
     coral = importers.importStep("assets/coral.step")
+    left_thingy = importers.importStep("assets/left_thingy.step")
 
     # the variable length pipes that connect the ends to the center box
     left_pipes = make_left_pipes(left_length)
     right_pipes = make_right_pipes(right_length)
     top_pipes = make_top_pipes(top_length)
+
+    # the platforms that sit on top of the sides
+    left_platform = make_left_platform(left_length)
+    right_platform = make_right_platform(right_length)
+
+    # the red velcro square where the brain coral is placed
+    velcro_square = make_velcro_square()
 
     return (
         Assembly()
@@ -120,11 +164,15 @@ def make_coral_restoration_site(
         .add(right_pipes, name="right_pipes")
         .add(top_end, name="top_end")
         .add(top_pipes, name="top_pipes")
+        .add(left_platform, name="left_platform")
+        .add(right_platform, name="right_platform")
+        .add(velcro_square, name="velcro_square", color=Color("red"))
         .add(
             coral,
             name="coral",
             color=Color(222 / 256, 74 / 256, 124 / 256),
         )
+        .add(left_thingy, name="left_thingy")
         # the center box shouldn't move
         .constrain("center_box", "Fixed")
         # left end
@@ -133,8 +181,9 @@ def make_coral_restoration_site(
         .constrain("left_pipes", "FixedRotation", (0, 0, 0))
         # connect the left end to the left pipes
         .constrain(
-            "left_end@vertices@>(1, -1, -1)",
-            "left_pipes?bottom_back_left",
+            "left_end@vertices@>(1, 1, 1)",
+            "left_pipes?top_back_right",
+            #  "left_pipes?bottom_back_left",
             "Point",
         )
         # connect the left pipes to the center box
@@ -148,17 +197,16 @@ def make_coral_restoration_site(
         .constrain("right_pipes", "FixedRotation", (0, 0, 0))
         # connect the right end to the right pipes
         .constrain(
-            "right_end@vertices@>(-1, -1, -1)",
-            "right_pipes?bottom_back_left",
+            "right_end@vertices@>(-1, 1, 1)",
+            "right_pipes?end_anchor_point",
             "Point",
         )
         # connect the right pipes to the center box
         .constrain(
-            "right_pipes?bottom_left",
+            "right_pipes?center_box_anchor_point",
             "center_box@vertices@>(1, -1, -1)",
             "Point",
         )
-        .constrain("right_pipes", "FixedRotation", (0, 0, 0))
         # top end
         .constrain("top_end", "FixedRotation", (0, 0, 0))
         .constrain("top_pipes", "FixedRotation", (0, 0, 0))
@@ -174,18 +222,86 @@ def make_coral_restoration_site(
             "center_box@vertices@>(1, 1, 1)",
             "Point",
         )
-        .constrain("coral", "FixedRotation", (0, 0, 0))
+        # place the left platform on top of the left end and pipes
+        .constrain("left_platform", "FixedRotation", (0, 0, 0))
+        .constrain(
+            "left_platform@vertices@>(-1, -1, -1)",
+            "left_end@vertices@>(-1, -1, 1)",
+            "Point",
+        )
+        .constrain(
+            "left_platform@vertices@>(-1, 1, -1)",
+            "left_end@vertices@>(-1, 1, 1)",
+            "Point",
+        )
+        # place the right platform on top of the right end and pipes
+        .constrain("right_platform", "FixedRotation", (0, 0, 0))
+        .constrain(
+            "right_platform@vertices@>(1, -1, -1)",
+            "right_end@vertices@>(1, -1, 1)",
+            "Point",
+        )
+        .constrain(
+            "right_platform@vertices@>(1, 1, -1)",
+            "right_end@vertices@>(1, 1, 1)",
+            "Point",
+        )
+        # place the velcro square in the middle of the right platform
+        .constrain(
+            "velcro_square@vertices@>(-1, -1, -1)",
+            "right_platform@vertices@>(-1, -1, 1)",
+            "Point",
+        )
+        .constrain(
+            "velcro_square@vertices@>(-1, 1, -1)",
+            "right_platform@vertices@>(-1, 1, 1)",
+            "Point",
+        )
+        .constrain(
+            "velcro_square@vertices@>(1, -1, -1)",
+            "right_platform@vertices@>(1, -1, 1)",
+            "Point",
+        )
+        .constrain(
+            "velcro_square@vertices@>(1, 1, -1)",
+            "right_platform@vertices@>(1, 1, 1)",
+            "Point",
+        )
+        # the velcro square should be a little offset towards the right
+        .constrain(
+            "velcro_square@vertices@>(1, -1, -1)",
+            "right_platform@vertices@>(1, -1, 1)",
+            "Point",
+        )
+        .constrain(
+            "velcro_square@vertices@>(1, 1, -1)",
+            "right_platform@vertices@>(1, 1, 1)",
+            "Point",
+        )
         # center the coral in the middle of the top end
+        .constrain("coral", "FixedRotation", (0, 0, 0))
         .constrain("coral@faces@<Z", "top_end@vertices@>(-1, -1, 1)", "Point")
         .constrain("coral@faces@<Z", "top_end@vertices@>(-1, 1, 1)", "Point")
         .constrain("coral@faces@<Z", "top_end@vertices@>(1, -1, 1)", "Point")
         .constrain("coral@faces@<Z", "top_end@vertices@>(1, 1, 1)", "Point")
+        # place the left thingy on top of the left end
+        .constrain("left_thingy", "FixedRotation", (0, 0, 0))
+        .constrain(
+            "left_thingy@faces@<Z",
+            "left_platform@vertices@>(-1, -1, 1)",
+            "Point",
+        )
+        .constrain(
+            "left_thingy@faces@<Z",
+            "left_platform@vertices@>(-1, 1, 1)",
+            "Point",
+        )
         .solve()
     )
 
 
 def main():
-    output_file = "result.glb"
+    output_file = "result.stl"
     print("Creating model...")
     coral_restoration_site = make_coral_restoration_site(400, 500, 400)
     coral_restoration_site.save(output_file)
