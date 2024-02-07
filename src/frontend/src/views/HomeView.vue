@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import Camera from '@/components/Camera.vue';
+    import SensorData from '@/components/SensorData.vue';
 </script>
 
 <template>
@@ -7,6 +8,7 @@
         <Camera cam-url="ws://192.168.100.2:3000"/>
         <Camera cam-url="ws://192.168.100.3:3000"/>
         <Camera cam-url="ws://192.168.100.4:3000"/>
+        <SensorData />
     </main>
 </template>
 
@@ -19,5 +21,8 @@
         grid-template-rows: 1fr 1fr;
         justify-items: center;
         align-items: center;
+        /* padding: 1rem; */
+        gap: 1rem;
+        box-sizing: border-box;
     }
 </style>

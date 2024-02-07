@@ -33,9 +33,9 @@ import { onMounted, type Ref, ref } from 'vue';
 
 <style scoped>
     canvas {
-        width: 35vw;
+        height: 95%;
         aspect-ratio: 16/9;
-        background: url("/new.jpg");
+        background: url("smpte_color_bars.gif");
         background-size: cover;
     }
 </style>
