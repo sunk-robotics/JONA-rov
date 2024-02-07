@@ -1,5 +1,6 @@
 import { fileURLToPath, URL } from 'node:url'
-const fs = require('fs')
+import { readFileSync } from 'node:fs'
+import mkcert from 'vite-plugin-mkcert'
 
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
@@ -10,6 +11,7 @@ export default defineConfig({
   plugins: [
     vue(),
     vueJsx(),
+    mkcert()
   ],
   resolve: {
     alias: {
@@ -18,9 +20,6 @@ export default defineConfig({
   },
   server: { 
     port: 3000,
-    https: {
-      key: fs.readFileSync('./certs/example.com+5-key.pem'),
-      cert: fs.readFileSync('./certs/example.com+5.pem'),
-    },
+    https: true
   }
 })
