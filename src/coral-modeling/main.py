@@ -1,3 +1,4 @@
+#!.venv/bin/python
 from cadquery import (
     importers,
     Assembly,
@@ -301,7 +302,7 @@ def make_coral_restoration_site(
 
 
 def main():
-    output_file = "result.stl"
+    output_file = "result.glb"
     print("Creating model...")
     coral_restoration_site = make_coral_restoration_site(400, 500, 400)
     coral_restoration_site.save(output_file)
