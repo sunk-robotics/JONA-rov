@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gamepad Browser Test</title>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script>
+      const gamepadInfo = document.getElementById("gamepad-info");
+      let gamepad;
+
+      let gamepad_ws;
+      // let gamepad_ws = new WebSocket("ws://127.0.0.1:8765");
+      // console.log(gamepad_ws)
+      const gamepad_client_info = {client_type: "joystick"};
+      // gamepad_ws.addEventListener("open", (event) => {
+      //   gamepad_ws.send(JSON.stringify(gamepad_client_info));
+      // });
+
+      function getButtons(gamepad) {
+        let buttons = {};
+        
+        buttons.north = gamepad.buttons[3].pressed;
+        buttons.east = gamepad.buttons[1].pressed;
+        buttons.south = gamepad.buttons[0].pressed;
+        buttons.west = gamepad.buttons[2].pressed;
+
+        buttons.left_bumper = gamepad.buttons[4].pressed;
+        buttons.right_bumper = gamepad.buttons[5].pressed;
+        buttons.left_trigger = gamepad.buttons[6].pressed;
+        buttons.right_trigger = gamepad.buttons[7].pressed;
+
+        buttons.select = gamepad.buttons[8].pressed;
+        buttons.start = gamepad.buttons[9].pressed;
+        buttons.mode = gamepad.buttons[16].pressed;
+        
+        buttons.left_thumb = gamepad.buttons[10].pressed;
+        buttons.right_thumb = gamepad.buttons[11].pressed;
+
+        return buttons;
+      }
+
+      function getDpad(gamepad) {
+        let dpad_x = gamepad.buttons[15].value - gamepad.buttons[14].value;
+        let dpad_y = gamepad.buttons[12].value - gamepad.buttons[13].value;
+        return [dpad_x, dpad_y];
+      }
+
+      function getLeftStick(gamepad) {
+        let x_axis = filterAxis(gamepad.axes[0]);
+        let y_axis = -filterAxis(gamepad.axes[1]);
+        return [x_axis, y_axis];
+      }
+
+      function getRightStick(gamepad) {
+        let x_axis = filterAxis(gamepad.axes[2]);
+        let y_axis = -filterAxis(gamepad.axes[3]);
+        return [x_axis, y_axis];
+      }
+
+      function filterAxis(axis_value) {
+        const deadzone = 0.1;
+        if (Math.abs(axis_value) < deadzone) {
+          return 0.0;
+        } else {
+          return axis_value;
+        }
+      }
+
+      function gamepadHandler(event, isConnected) {
+        if (isConnected) {
+          gamepad = event.gamepad;
+        } else {
+          gamepad = null;
+        }
+
+      }
+
+      window.addEventListener("gamepadconnected", (e) => {
+        console.log(
+          "Gamepad connected at index %d: %s. %d buttons, %d axes",
+          e.gamepad.index,
+          e.gamepad.id,
+          e.gamepad.buttons.length,
+          e.gamepad.axes.length,
+        )
+        gamepadHandler(e, true);
+        console.log(gamepad);
+      })
+      window.addEventListener("gamepaddisconnected", (e) => {
+        gamepadHandler(e, false);
+        console.log(gamepad);
+      })
+
+      if (!("ongamepadconnected" in window)) {
+        interval = setInterval(mainLoop, 500)
+      }
+
+      function connectGamepadWebsocket() {
+        let ws = new WebSocket("ws://127.0.0.1:8765");
+      }
+      function mainLoop() {
+        let ws = new WebSocket("ws://127.0.0.1:8765");
+        let gamepad = navigator.getGamepads()[0];
+
+        if (gamepad == null || gamepad_ws == null) {
+          return;
+        }
+
+        let gamepad_data = {
+          "buttons": getButtons(gamepad),
+          "left_stick": getLeftStick(gamepad),
+          "right_stick": getRightStick(gamepad),
+          "dpad": getDpad(gamepad),
+        };
+      }
+      function pollGamepad() {
+        let gamepad = navigator.getGamepads()[0];
+        if (gamepad == null) {
+          return;
+        }
+      }
+    </script>
+    <h1>Gamepad Browser</h1>
+    <p id="gamepad-info"></p>
+  </body>
+</html>
