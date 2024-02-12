@@ -1,8 +1,10 @@
 #!/usr/bin/python
 #  import adafruit_bno055
 import asyncio
+
 #  import board
 import json
+
 #  from motors import Motors
 #  from ms5837 import MS5837_02BA
 import time
@@ -63,8 +65,9 @@ class WSServer:
     @classmethod
     async def handler(cls, websocket, path):
         try:
-            client_info_json = await asyncio.wait_for(websocket.recv(),
-                                                      timeout=2.0)
+            client_info_json = await asyncio.wait_for(
+                websocket.recv(), timeout=2.0
+            )
             print("Client connected!")
         except asyncio.TimeoutError:
             print("Connection failed!")
@@ -88,8 +91,13 @@ class PID:
     last_time = None
     last_error = None
 
-    def __init__(self, set_point=0, proportional_gain=0, integral_gain=0,
-                 derivative_gain=0):
+    def __init__(
+        self,
+        set_point=0,
+        proportional_gain=0,
+        integral_gain=0,
+        derivative_gain=0,
+    ):
         self.set_point = set_point
         self.proportional_gain = proportional_gain
         self.integral_gain = integral_gain
@@ -117,8 +125,11 @@ class PID:
         self.last_error = error
 
         # add the P, I, and the D together
-        output = (self.proportional_gain * error + self.integral_gain
-                  * self.integral + self.derivative_gain * d_error)
+        output = (
+            self.proportional_gain * error
+            + self.integral_gain * self.integral
+            + self.derivative_gain * d_error
+        )
         return output
 
 
@@ -127,9 +138,9 @@ async def main_server():
 
     #  depth_sensor = MS5837_02BA(1)
     #  try:
-        #  imu = adafruit_bno055.BNO055_I2C(board.I2C())
+    #  imu = adafruit_bno055.BNO055_I2C(board.I2C())
     #  except OSError:
-        #  print("Unable to connect IMU")
+    #  print("Unable to connect IMU")
 
     vertical_anchor = False
     # adjust the y-velocity to have the ROV remain at a constant depth
@@ -159,7 +170,7 @@ async def main_server():
         "z_velocity": 0,
         "yaw_velocity": 0,
         "pitch_velocity": 0,
-        "roll_velocity": 0
+        "roll_velocity": 0,
     }
 
     # stores the last button press of the velocity toggle button
@@ -171,8 +182,8 @@ async def main_server():
     prev_motor_lock_toggle = None
 
     #  if not depth_sensor.init():
-        #  print("Depth sensor not working!")
-        #  depth_sensor = None
+    #  print("Depth sensor not working!")
+    #  depth_sensor = None
 
     print("Server started!")
     while True:
@@ -188,14 +199,17 @@ async def main_server():
         #  print(imu.euler[0])
         #  print(imu.euler[1])
         #  print(imu.euler[2])
+        print(joystick_data)
         x_velocity = joystick_data["right_stick"][0] * speed_factor
         y_velocity = joystick_data["left_stick"][1] * speed_factor
         z_velocity = joystick_data["right_stick"][1] * speed_factor
         yaw_velocity = joystick_data["left_stick"][0] * speed_factor
         pitch_velocity = joystick_data["dpad"][1] * speed_factor
         roll_velocity = joystick_data["dpad"][0] * speed_factor
-        #  speed_toggle = (joystick_data["right_bumper"]
-                        #  - joystick_data["left_bumper"])
+        speed_toggle = (
+            joystick_data["buttons"]["right_bumper"]
+            - joystick_data["buttons"]["left_bumper"]
+        )
         speed_toggle = False
         vertical_anchor_toggle = joystick_data["buttons"]["north"]
         roll_anchor_toggle = joystick_data["buttons"]["east"]
@@ -238,7 +252,7 @@ async def main_server():
         #          pitch_velocity = pitch_pid.compute(pitch_angle)
 
         #  motors.drive_motors(x_velocity, y_velocity, z_velocity, yaw_velocity,
-                            #  pitch_velocity, roll_velocity)
+        #  pitch_velocity, roll_velocity)
 
         # increase or decrease speed when the dpad buttons are pressed
         if speed_toggle != prev_speed_toggle:
@@ -329,14 +343,15 @@ async def main_server():
 def main():
     loop = asyncio.get_event_loop()
     ws_server = websockets.serve(
-        WSServer.handler, "0.0.0.0", 8765, ping_interval=None)
+        WSServer.handler, "0.0.0.0", 8765, ping_interval=None
+    )
     asyncio.ensure_future(ws_server)
     asyncio.ensure_future(main_server())
     loop.run_forever()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
-        print('')
+        print("")
