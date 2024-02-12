@@ -1,5 +1,9 @@
 <script setup lang="ts">
   import { RouterView } from 'vue-router';
+  import { gamepad_ws, main } from './scripts/gamepad';
+  gamepad_ws;
+
+  main()
 </script>
 
 <template>
