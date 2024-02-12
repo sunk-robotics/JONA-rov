@@ -19,7 +19,7 @@ loader.load('/result.glb', function (gltf) {
   gltf.scene.traverse(obj => {
     if (obj instanceof three.Mesh) {
       // obj.material = new three.MeshPhongMaterial()
-      obj.castShadow = false
+      obj.castShadow = true
     }
   })
   const planeSize = 40;
@@ -42,23 +42,23 @@ loader.load('/result.glb', function (gltf) {
   mesh.rotation.x = Math.PI * - .5;
   // scene.add( mesh );
 
-  const skyColor = 0xB1E1FF;  // light blue
-  const groundColor = 0xB97A20;  // brownish orange
-  const intensity = 2;
-  const light = new three.HemisphereLight(skyColor, groundColor, intensity);
-  scene.add(light);
+  // const skyColor = 0xB1E1FF;  // light blue
+  // const groundColor = 0xB97A20;  // brownish orange
+  // const intensity = 2;
+  // const light = new three.HemisphereLight(skyColor, groundColor, intensity);
+  // scene.add(light);
   
-  let directionalLight1 = new three.DirectionalLight(0xffffff, 5);
-  directionalLight1.position.set(5, 10, 2);
-  directionalLight1.castShadow = false;
-  scene.add(directionalLight1);
-  scene.add(directionalLight1.target);
+  // let directionalLight1 = new three.DirectionalLight(0xffffff, 5);
+  // directionalLight1.position.set(5, 10, 2);
+  // directionalLight1.castShadow = false;
+  // scene.add(directionalLight1);
+  // scene.add(directionalLight1.target);
 
-  let directionalLight2 = new three.DirectionalLight(0xffffff, 5);
-  directionalLight2.position.set(-5, -10, -2);
-  directionalLight2.castShadow = false;
-  scene.add(directionalLight2);
-  scene.add(directionalLight2.target);
+  // let directionalLight2 = new three.DirectionalLight(0xffffff, 5);
+  // directionalLight2.position.set(-5, -10, -2);
+  // directionalLight2.castShadow = false;
+  // scene.add(directionalLight2);
+  // scene.add(directionalLight2.target);
 
   gltf.scene.scale.set(0.01, 0.01, 0.01)
   gltf.scene.rotation.set(-Math.PI / 2, 0, 0)
@@ -72,6 +72,21 @@ loader.load('/result.glb', function (gltf) {
   console.error(error);
 
 });
+
+{
+  const skyColor = 0xB1E1FF;  // light blue
+  const groundColor = 0xB97A20;  // brownish orange
+  const intensity = 2;
+  const light = new three.HemisphereLight(skyColor, groundColor, intensity);
+  scene.add(light);
+
+  let directionalLight1 = new three.DirectionalLight(0xffffff, 5);
+  directionalLight1.position.set(5, 10, 2);
+  directionalLight1.castShadow = false;
+  scene.add(directionalLight1);
+  scene.add(directionalLight1.target);
+}
+
 
 const color = 0xFFFFFF;
 const intensity = 2.5;
