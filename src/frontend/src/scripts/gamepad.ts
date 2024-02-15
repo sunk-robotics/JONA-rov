@@ -2,67 +2,67 @@ const GAMEPAD_WS_URL = "ws://127.0.0.1:8765";
 const GAMEPAD_CLIENT_INFO = {client_type: "joystick"};
 let gamepad_ws: WebSocket;
 
-type Button = {
+type Buttons = {
     north?: boolean,
     east?: boolean,
     south?: boolean,
     west?: boolean,
 
-    leftBumper?: boolean,
-    rightBumper?: boolean,
-    leftTrigger?: boolean,
-    rightTrigger?: boolean,
+    left_bumper?: boolean,
+    right_bumper?: boolean,
+    left_trigger?: boolean,
+    right_trigger?: boolean,
 
     select?: boolean,
     start?: boolean,
     mode?: boolean,
 
-    leftThumb?: boolean,
-    rightThumb?: boolean
+    left_thumb?: boolean,
+    right_thumb?: boolean
 }
 
-function getButtons(gamepad: Gamepad) {
-  let buttons: Button = {}
+function getButtons(gamepad: Gamepad): Buttons {
+  let buttons: Buttons = {}
   
   buttons.north = gamepad.buttons[3].pressed;
   buttons.east = gamepad.buttons[1].pressed;
   buttons.south = gamepad.buttons[0].pressed;
   buttons.west = gamepad.buttons[2].pressed;
 
-  buttons.leftBumper = gamepad.buttons[4].pressed;
-  buttons.rightBumper = gamepad.buttons[5].pressed;
-  buttons.leftTrigger = gamepad.buttons[6].pressed;
-  buttons.rightTrigger = gamepad.buttons[7].pressed;
+  buttons.left_bumper = gamepad.buttons[4].pressed;
+  buttons.right_bumper = gamepad.buttons[5].pressed;
+  buttons.left_trigger = gamepad.buttons[6].pressed;
+  buttons.right_trigger = gamepad.buttons[7].pressed;
 
   buttons.select = gamepad.buttons[8].pressed;
   buttons.start = gamepad.buttons[9].pressed;
   buttons.mode = gamepad.buttons[16].pressed;
   
-  buttons.leftThumb = gamepad.buttons[10].pressed;
-  buttons.rightThumb = gamepad.buttons[11].pressed;
+  buttons.left_thumb = gamepad.buttons[10].pressed;
+  buttons.right_thumb = gamepad.buttons[11].pressed;
 
   return buttons;
 }
 
-function getDpad(gamepad: Gamepad) {
+function getDpad(gamepad: Gamepad): number[] {
   let dpad_x = gamepad.buttons[15].value - gamepad.buttons[14].value;
   let dpad_y = gamepad.buttons[12].value - gamepad.buttons[13].value;
   return [dpad_x, dpad_y];
 }
 
-function getLeftStick(gamepad: Gamepad) {
+function getLeftStick(gamepad: Gamepad): number[] {
   let x_axis = filterAxis(gamepad.axes[0]);
   let y_axis = -filterAxis(gamepad.axes[1]);
   return [x_axis, y_axis];
 }
 
-function getRightStick(gamepad: Gamepad) {
+function getRightStick(gamepad: Gamepad): number[] {
   let x_axis = filterAxis(gamepad.axes[2]);
   let y_axis = -filterAxis(gamepad.axes[3]);
   return [x_axis, y_axis];
 }
 
-function filterAxis(axis_value: number) {
+function filterAxis(axis_value: number): number {
   const deadzone = 0.1;
   if (Math.abs(axis_value) < deadzone) {
     return 0.0;

@@ -20,52 +20,15 @@ loader.load('/result.glb', function (gltf) {
     if (obj instanceof three.Mesh) {
       // obj.material = new three.MeshPhongMaterial()
       obj.castShadow = true
+      obj.receiveShadow = false;
     }
   })
-  const planeSize = 40;
-
-  const texture_loader = new three.TextureLoader();
-  const texture = texture_loader.load('/checker.png');
-  texture.wrapS = three.RepeatWrapping;
-  texture.wrapT = three.RepeatWrapping;
-  texture.magFilter = three.NearestFilter;
-  texture.colorSpace = three.SRGBColorSpace;
-  const repeats = planeSize / 2;
-  texture.repeat.set( repeats, repeats );
-
-  const planeGeo = new three.PlaneGeometry( planeSize, planeSize );
-  const planeMat = new three.MeshPhongMaterial( {
-      map: texture,
-      side: three.DoubleSide,
-  } );
-  const mesh = new three.Mesh( planeGeo, planeMat );
-  mesh.rotation.x = Math.PI * - .5;
-  // scene.add( mesh );
-
-  // const skyColor = 0xB1E1FF;  // light blue
-  // const groundColor = 0xB97A20;  // brownish orange
-  // const intensity = 2;
-  // const light = new three.HemisphereLight(skyColor, groundColor, intensity);
-  // scene.add(light);
-  
-  // let directionalLight1 = new three.DirectionalLight(0xffffff, 5);
-  // directionalLight1.position.set(5, 10, 2);
-  // directionalLight1.castShadow = false;
-  // scene.add(directionalLight1);
-  // scene.add(directionalLight1.target);
-
-  // let directionalLight2 = new three.DirectionalLight(0xffffff, 5);
-  // directionalLight2.position.set(-5, -10, -2);
-  // directionalLight2.castShadow = false;
-  // scene.add(directionalLight2);
-  // scene.add(directionalLight2.target);
-
   gltf.scene.scale.set(0.01, 0.01, 0.01)
   gltf.scene.rotation.set(-Math.PI / 2, 0, 0)
   console.log(gltf.scene.position);
 
   scene.add(gltf.scene);
-  scene.position.x = -10
+  scene.position.x = -5
 
 }, undefined, function (error) {
 
@@ -79,14 +42,20 @@ loader.load('/result.glb', function (gltf) {
   const intensity = 2;
   const light = new three.HemisphereLight(skyColor, groundColor, intensity);
   scene.add(light);
-
-  let directionalLight1 = new three.DirectionalLight(0xffffff, 5);
-  directionalLight1.position.set(5, 10, 2);
-  directionalLight1.castShadow = false;
-  scene.add(directionalLight1);
-  scene.add(directionalLight1.target);
 }
 
+for (let i = -1; i <= 1; i++) {
+  for (let j = -1; j <= 1; j++) {
+    for (let k = -1; k <= 1; k++) {
+      const color = 0xFF_FF_FF;
+      const intensity = 0.3;
+      const directionalLight = new three.DirectionalLight(color, intensity);
+      directionalLight.position.set(i, j, k);
+      scene.add(directionalLight);
+      scene.add(directionalLight.target);
+    }
+  }
+}
 
 const color = 0xFFFFFF;
 const intensity = 2.5;
