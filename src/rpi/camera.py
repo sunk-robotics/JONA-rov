@@ -47,6 +47,7 @@ def main():
     ws_server = serve(
         WSServer.handler, "0.0.0.0", 3000, ping_interval=None
     )
+    print("Server started!")
     asyncio.ensure_future(ws_server)
     loop.run_forever()
 
