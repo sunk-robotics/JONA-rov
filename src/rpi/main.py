@@ -125,11 +125,17 @@ class PID:
 async def main_server():
     motors = Motors()
 
-    depth_sensor = MS5837_02BA(1)
+    try:
+        depth_sensor = MS5837_02BA(1)
+        depth_sensor.init()
+    except OSError:
+        print("Unable to connect to depth sensor!")
+        depth_sensor = None
     try:
         imu = adafruit_bno055.BNO055_I2C(board.I2C())
     except OSError:
-        print("Unable to connect IMU")
+        print("Unable to connect IMU!")
+        imu = None
 
     vertical_anchor = False
     # adjust the y-velocity to have the ROV remain at a constant depth
@@ -170,32 +176,29 @@ async def main_server():
     prev_yaw_anchor_toggle = None
     prev_motor_lock_toggle = None
 
-    if not depth_sensor.init():
-        print("Depth sensor not working!")
-        depth_sensor = None
-
     print("Server started!")
     while True:
         joystick_data = WSServer.pump_joystick_data()
-        depth_sensor.read()
+        if depth_sensor is not None:
+            depth_sensor.read()
 
         # if a joystick client hasn't connected yet
         if not joystick_data:
             await asyncio.sleep(0.01)
             continue
 
-        print(f"Depth: {depth_sensor.depth() * 100:2f}cm")
-        print(imu.euler[0])
-        print(imu.euler[1])
-        print(imu.euler[2])
+        #  print(f"Depth: {depth_sensor.depth() * 100:2f}cm")
+        #  print(imu.euler[0])
+        #  print(imu.euler[1])
+        #  print(imu.euler[2])
         x_velocity = joystick_data["right_stick"][0] * speed_factor
         y_velocity = joystick_data["left_stick"][1] * speed_factor
         z_velocity = joystick_data["right_stick"][1] * speed_factor
         yaw_velocity = joystick_data["left_stick"][0] * speed_factor
         pitch_velocity = joystick_data["dpad"][1] * speed_factor
         roll_velocity = joystick_data["dpad"][0] * speed_factor
-        #  speed_toggle = (joystick_data["right_bumper"]
-                        #  - joystick_data["left_bumper"])
+        speed_toggle = (joystick_data["buttons"]["right_bumper"]
+                        - joystick_data["buttons"]["left_bumper"])
         speed_toggle = False
         vertical_anchor_toggle = joystick_data["buttons"]["north"]
         roll_anchor_toggle = joystick_data["buttons"]["east"]
@@ -213,26 +216,26 @@ async def main_server():
 
         # set the z velocity according to the vertical PID controller based on
         # current depth
-        if vertical_anchor:
+        if vertical_anchor and depth_sensor is not None:
             z_velocity = vertical_pid.compute(depth_sensor.depth())
 
         # set the yaw velocity according to the yaw PID controller based on
         # current yaw angle
-        if yaw_anchor:
+        if yaw_anchor and imu is not None:
             yaw_angle = imu.euler[1]
             if yaw_angle is not None:
                 yaw_velocity = yaw_pid.compute(yaw_angle)
 
         # set the roll velocity according to the roll PID controller based on
         # current roll angle
-        if roll_anchor:
+        if roll_anchor and imu is not None:
             roll_angle = imu.euler[1]
             if roll_angle is not None:
                 roll_velocity = roll_pid.compute(roll_angle)
 
         # set the pitch velocity according to the pitch PID controller based on
         # current pitch angle
-        if pitch_anchor:
+        if pitch_anchor and imu is not None:
             pitch_angle = imu.euler[2]
             if pitch_angle is not None:
                 pitch_velocity = pitch_pid.compute(pitch_angle)
@@ -257,7 +260,7 @@ async def main_server():
             prev_speed_toggle = speed_toggle
 
         # toggle the vertical anchor
-        if vertical_anchor_toggle and not prev_vertical_anchor_toggle:
+        if depth_sensor is not None and vertical_anchor_toggle and not prev_vertical_anchor_toggle:
             if vertical_anchor:
                 print("Vertical anchor disabled!")
                 vertical_anchor = False
@@ -269,7 +272,7 @@ async def main_server():
                 print(f"Vertical anchor enabled at: {vertical_anchor_depth} m")
 
         # toggle the yaw anchor
-        if yaw_anchor_toggle and not prev_yaw_anchor_toggle:
+        if imu is not None and yaw_anchor_toggle and not prev_yaw_anchor_toggle:
             if yaw_anchor:
                 print("Pitch anchor disabled!")
             elif depth_sensor is not None:
@@ -281,7 +284,7 @@ async def main_server():
                 print(f"Pitch anchor enabled at: {yaw_anchor_angle}°")
 
         # toggle the roll anchor
-        if roll_anchor_toggle and not prev_roll_anchor_toggle:
+        if imu is not None and roll_anchor_toggle and not prev_roll_anchor_toggle:
             if roll_anchor:
                 print("Roll anchor disabled!")
                 roll_anchor = False
@@ -293,7 +296,7 @@ async def main_server():
                 print(f"Roll anchor enabled at: {roll_anchor_angle}°")
 
         # toggle the pitch anchor
-        if pitch_anchor_toggle and not prev_pitch_anchor_toggle:
+        if imu is not None and pitch_anchor_toggle and not prev_pitch_anchor_toggle:
             if pitch_anchor:
                 print("Pitch anchor disabled!")
             elif depth_sensor is not None:
