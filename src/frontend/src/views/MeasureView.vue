@@ -4,11 +4,14 @@
     const image = useImageStore()
 
     const frame = ref<HTMLCanvasElement | null>(null)
-    onMounted(() => {
+    onMounted(async () => {
         frame.value?.focus()
         let ctx = frame.value?.getContext("2d")
-        console.log(typeof(image.get()))
-        ctx?.drawImage(image.get(), 0, 0, 1280, 720)
+        let decoder = new ImageDecoder({
+            type: "image/jpeg",
+            data: image.get()
+        });
+        ctx?.drawImage(await decoder.decode(), 0, 0, 1280, 720)
     })
 </script>
 

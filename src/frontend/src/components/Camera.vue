@@ -19,13 +19,13 @@
     })
 
     wsFeed.addEventListener("message", (event) => {
+        image.set(event.data)
         decoder = new ImageDecoder({
             type: "image/jpeg",
             data: event.data
         });
 
         let frame = decoder.decode().then((res: any) => {
-            // image.set(res.image)
             ctx.drawImage(res.image, 0, 0, 1280, 720)
         })
     })

@@ -1,12 +1,12 @@
 import { defineStore } from "pinia";
 
 export const useImageStore = defineStore('image', {
-    state: (): { image: VideoFrame | null } => ({ image: null }),
+    state: (): { image: ArrayBuffer | null } => ({ image: null }),
     actions: {
-        set(data: VideoFrame) {
+        set(data: ArrayBuffer) {
             this.image = data
         },
-        get(): VideoFrame {
+        get(): ArrayBuffer {
             return this.image
         }
     }
