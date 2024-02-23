@@ -1,3 +1,6 @@
 src/coral-modeling/.venv/
 src/.venv/
 src/model-viewer/node_modules/
+src/rpi/build/
+src/rpi/main.spec
+src/rpi/dist/

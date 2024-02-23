@@ -5,8 +5,8 @@
 
 <template>
     <main>
-        <Camera cam-url="ws://192.168.0.105:3000"/>
-        <Camera cam-url="ws://192.168.0.103:3000"/>
+        <Camera cam-url="ws://192.168.0.102:3000"/>
+        <Camera cam-url="ws://192.168.0.101:3000"/>
         <Camera cam-url="ws://192.168.0.104:3000"/>
         <SensorData />
     </main>
