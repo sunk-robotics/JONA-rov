@@ -1,5 +1,8 @@
 <script setup lang="ts">
-import { onMounted, type Ref, ref } from 'vue';
+    import { onMounted, type Ref, ref } from 'vue';
+    import { useImageStore } from "@/stores/image"
+
+    const image = useImageStore()
     let decoder;
 
     const props = defineProps<{camUrl: string}>();
@@ -22,13 +25,18 @@ import { onMounted, type Ref, ref } from 'vue';
         });
 
         let frame = decoder.decode().then((res: any) => {
+            image.set(res)
             ctx.drawImage(res.image, 0, 0, 1280, 720)
         })
     })
+
+    function redirectMeasure() {
+        window.location.pathname = "measure"
+    }
 </script>
 
 <template>
-    <canvas ref="canvas" width=1280 height=720></canvas>
+    <canvas ref="canvas" width=1280 height=720 @click="redirectMeasure"></canvas>
 </template>
 
 <style scoped>
@@ -39,5 +47,9 @@ import { onMounted, type Ref, ref } from 'vue';
         margin-left: 0.5em;
         margin-right: 0.5em;
         width: 45vw;
+    }
+
+    canvas:hover {
+        cursor:grab;
     }
 </style>
