@@ -1,4 +1,4 @@
-const GAMEPAD_WS_URL = "ws://127.0.0.1:8765";
+const GAMEPAD_WS_URL = "ws://192.168.0.102:8765";
 const GAMEPAD_CLIENT_INFO = {client_type: "joystick"};
 let gamepad_ws: WebSocket;
 
@@ -102,6 +102,7 @@ function mainLoop() {
 }
 
 function main() {
+  console.log("hello world!");
   gamepad_ws = new WebSocket(GAMEPAD_WS_URL);
   gamepad_ws.addEventListener("open", (event: Event) => {
     gamepad_ws.send(JSON.stringify(GAMEPAD_CLIENT_INFO));
