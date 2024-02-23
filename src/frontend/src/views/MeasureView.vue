@@ -7,6 +7,7 @@
     onMounted(() => {
         frame.value?.focus()
         let ctx = frame.value?.getContext("2d")
+        console.log(typeof(image.get()))
         ctx?.drawImage(image.get(), 0, 0, 1280, 720)
     })
 </script>
