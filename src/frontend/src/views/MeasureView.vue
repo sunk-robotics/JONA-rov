@@ -1,6 +1,6 @@
 <script setup lang="ts">
     import { useImageStore } from '@/stores/image';
-import { onMounted, ref } from 'vue';
+    import { onMounted, ref } from 'vue';
     const image = useImageStore()
 
     const frame = ref<HTMLCanvasElement | null>(null)
