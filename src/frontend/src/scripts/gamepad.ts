@@ -1,4 +1,4 @@
-const GAMEPAD_WS_URL = "ws://192.168.0.102:8765";
+const GAMEPAD_WS_URL = "ws://192.168.100.1:8765";
 const GAMEPAD_CLIENT_INFO = {client_type: "joystick"};
 let gamepad_ws: WebSocket;
 
