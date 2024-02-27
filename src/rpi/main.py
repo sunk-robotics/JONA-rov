@@ -7,85 +7,10 @@ from motors import Motors
 from ms5837 import MS5837_02BA
 import time
 import websockets
+from ws_server import WSServer
 from pid import PID
 
 DESTABLE_THRESH = 0.5 # when depth stabiliziation is active, how much the joystick needs to push to stop stabilizing
-
-
-# websocket server
-class WSServer:
-    # registers the websocket objects of the clients to allow sending data to
-    # the clients outside of the handler function
-    joystick_client = None
-    # web client websocket object used to transmit non-image data (sensor data)
-    web_client_main = None
-    # separate websocket used to transmit binary image data
-    web_client_camera = None
-
-    # incoming joystick data, can be accessed outside of the handler function
-    joystick_data = None
-
-    @classmethod
-    def pump_joystick_data(cls):
-        return cls.joystick_data
-
-    @classmethod
-    async def joystick_handler(cls, websocket, path):
-        cls.joystick_client = websocket
-        print("Joystick client connected")
-        async for message in websocket:
-            cls.joystick_data = json.loads(message)
-        cls.joystick_client = None
-
-    @classmethod
-    async def web_client_main_handler(cls, websocket, path):
-        cls.web_client_main = websocket
-        print("Web client connected!")
-        while True:
-            try:
-                await websocket.wait_closed()
-                print("Web client disconnected!")
-                cls.web_client_main = None
-                break
-            except websockets.ConnectionClosed:
-                print("Web client disconnected!")
-
-    @classmethod
-    async def web_client_camera_handler(cls, websocket, path):
-        cls.web_client_camera = websocket
-        print("Web client connected!")
-        while True:
-            try:
-                await websocket.wait_closed()
-                print("Web client disconnected!")
-                cls.web_client_camera = None
-                break
-            except websockets.ConnectionClosed:
-                print("Web client disconnected!")
-
-    @classmethod
-    async def handler(cls, websocket, path):
-        try:
-            client_info_json = await asyncio.wait_for(websocket.recv(),
-                                                      timeout=2.0)
-            print("Client connected!")
-        except asyncio.TimeoutError:
-            print("Connection failed!")
-            return
-        client_info = json.loads(client_info_json)
-        try:
-            client_type = client_info["client_type"]
-        except KeyError:
-            print("Key error!")
-            return
-        if client_type == "joystick":
-            await cls.joystick_handler(websocket, path)
-        elif client_type == "web_client_main":
-            await cls.web_client_main_handler(websocket, path)
-        elif client_type == "web_client_camera":
-            await cls.web_client_camera_handler(websocket, path)
-
-
 
 async def main_server():
     motors = Motors()
@@ -104,19 +29,24 @@ async def main_server():
 
     vertical_anchor = False
     # adjust the y-velocity to have the ROV remain at a constant depth
-    vertical_pid = PID()
+    # TODO - Likely need to re-tune the PID parameters
+    vertical_pid = PID(proportional_gain=2,
+                       integral_gain=0.05, derivative_gain=0.01)
 
     yaw_anchor = False
     # adjust the yaw velocity to keep the ROV stable
-    yaw_pid = PID()
+    # TODO - Need to tune the PID parameters
+    yaw_pid = PID(proportional_gain=0, integral_gain=0, derivative_gain=0)
 
     roll_anchor = False
     # adjust the roll velocity to keep the ROV stable
-    roll_pid = PID()
+    roll_pid = PID(proportional_gain=0.025, integral_gain=0.001, derivative_gain=0.0e-4)
+
 
     pitch_anchor = False
     # adjust the pitch velocity to keep the ROV stable
-    pitch_pid = PID()
+    # TODO - Need to tune the PID parameters
+    pitch_pid = PID(proportional_gain=0, integral_gain=0, derivative_gain=0)
 
     # multiplier for velocity to set speed limit
     speed_factor = 0.5
@@ -140,6 +70,8 @@ async def main_server():
     prev_pitch_anchor_toggle = None
     prev_yaw_anchor_toggle = None
     prev_motor_lock_toggle = None
+
+    prev_z_velocity = 0
 
     print("Server started!")
     while True:
@@ -171,20 +103,20 @@ async def main_server():
         yaw_anchor_toggle = joystick_data["buttons"]["west"]
         motor_lock_toggle = joystick_data["buttons"]["start"]
 
-        if motor_lock:
-            x_velocity = locked_velocities["x_velocity"]
-            y_velocity = locked_velocities["y_velocity"]
-            z_velocity = locked_velocities["z_velocity"]
-            yaw_velocity = locked_velocities["yaw_velocity"]
-            pitch_velocity = locked_velocities["pitch_velocity"]
-            roll_velocity = locked_velocities["roll_velocity"]
+        
+        # re-enable the vertical anchor when the z velocity falls below the
+        # threshold
+        if vertical_anchor and z_velocity < DESTABLE_THRESH and prev_z_velocity > DESTABLE_THRESH:
+            vertical_pid.update_set_point(depth_sensor.depth())
 
         # set the z velocity according to the vertical PID controller based on
-        # current depth
-        if vertical_anchor and depth_sensor is not None and abs(joystick_data["left_stick"][1]) > DESTABLE_THRESH:
+        # current depth, the vertical anchor should be temporarily disabled
+        # when the z velocity is greater than a certain threshold in order to
+        # give the pilot control over the depth when the vertical anchor is on
+        if vertical_anchor and depth_sensor is not None and z_velocity < DESTABLE_THRESH:
             z_velocity = vertical_pid.compute(depth_sensor.depth())
 
-        
+
 
         # set the yaw velocity according to the yaw PID controller based on
         # current yaw angle
@@ -207,6 +139,16 @@ async def main_server():
             if pitch_angle is not None:
                 pitch_velocity = pitch_pid.compute(pitch_angle)
 
+        if motor_lock:
+            x_velocity = locked_velocities["x_velocity"]
+            y_velocity = locked_velocities["y_velocity"]
+            z_velocity = locked_velocities["z_velocity"]
+            yaw_velocity = locked_velocities["yaw_velocity"]
+            pitch_velocity = locked_velocities["pitch_velocity"]
+            roll_velocity = locked_velocities["roll_velocity"]
+
+
+        # run the motors!
         motors.drive_motors(x_velocity, y_velocity, z_velocity, yaw_velocity,
                             pitch_velocity, roll_velocity)
 
@@ -233,9 +175,7 @@ async def main_server():
                 vertical_anchor = False
             elif depth_sensor is not None:
                 vertical_anchor = True
-                vertical_anchor_depth = depth_sensor.depth()
-                vertical_pid = PID(vertical_anchor_depth, proportional_gain=2,
-                                   integral_gain=0.05, derivative_gain=0.01)
+                vertical_pid.update_set_point(depth_sensor.depth())
                 print(f"Vertical anchor enabled at: {vertical_anchor_depth} m")
 
         # toggle the yaw anchor
@@ -244,10 +184,7 @@ async def main_server():
                 print("Pitch anchor disabled!")
             elif depth_sensor is not None:
                 yaw_anchor = True
-                yaw_anchor_angle = imu.euler[2]
-                # TODO - Need to tune PID parameters
-                yaw_pid = PID(yaw_anchor_angle, proportional_gain=0,
-                              integral_gain=0, derivative_gain=0)
+                yaw_pid.update_set_point(imu.euler[2])
                 print(f"Pitch anchor enabled at: {yaw_anchor_angle}°")
 
         # toggle the roll anchor
@@ -257,9 +194,7 @@ async def main_server():
                 roll_anchor = False
             elif depth_sensor is not None:
                 roll_anchor = True
-                roll_anchor_angle = imu.euler[1]
-                roll_pid = PID(roll_anchor_angle, proportional_gain=0.025,
-                               integral_gain=0.001, derivative_gain=0.0e-4)
+                roll_pid.update_set_point(imu.euler[1])
                 print(f"Roll anchor enabled at: {roll_anchor_angle}°")
 
         # toggle the pitch anchor
@@ -268,10 +203,7 @@ async def main_server():
                 print("Pitch anchor disabled!")
             elif depth_sensor is not None:
                 pitch_anchor = True
-                pitch_anchor_angle = imu.euler[2]
-                # TODO - Need to tune PID parameters
-                pitch_pid = PID(pitch_anchor_angle, proportional_gain=0,
-                                integral_gain=0, derivative_gain=0)
+                pitch_pid.update_set_point(pitch_anchor_angle)
                 print(f"Pitch anchor enabled at: {pitch_anchor_angle}°")
 
         # toggle the motor lock

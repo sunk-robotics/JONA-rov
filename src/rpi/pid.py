@@ -1,8 +1,8 @@
 
 # used to adjust the motor velocities to keep the ROV at a constant position
 class PID:
-    last_time = None
-    last_error = None
+    #  last_time = None
+    #  last_error = None
 
     def __init__(self, set_point=0, proportional_gain=0, integral_gain=0,
                  derivative_gain=0):
@@ -36,3 +36,9 @@ class PID:
         output = (self.proportional_gain * error + self.integral_gain
                   * self.integral + self.derivative_gain * d_error)
         return output
+    
+    def update_set_point(self, set_point):
+        self.set_point = set_point
+        self.integral = 0
+        self.last_time = time.time()
+        self.last_error = set_point
