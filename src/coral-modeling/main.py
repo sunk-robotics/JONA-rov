@@ -9,6 +9,9 @@ from cadquery import (
 )
 from cqkit import recentre
 
+from http.server import HTTPServer, BaseHTTPRequestHandler
+from urllib.parse import parse_qs
+
 
 def make_left_pipes(length: float) -> Workplane:
     pvc_radius = 10.766
@@ -302,7 +305,7 @@ def make_coral_restoration_site(
     )
 
 
-def main():
+def createfile():
     output_file = "result.glb"
     print("Creating model...")
     coral_restoration_site = make_coral_restoration_site(400, 500, 400)
@@ -310,5 +313,29 @@ def main():
     print(f"Outputted model to {output_file}")
 
 
+
+class ReqHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        parsed_url = parse_qs(self.path)
+        print(parsed_url)
+        left = int(parsed_url['/left'][0])
+        right = int(parsed_url['right'][0])
+        top = int(parsed_url['top'][0])
+
+
+        output_file = "result.glb"
+        print("Creating model...")
+        coral_restoration_site = make_coral_restoration_site(left, right, top)
+        coral_restoration_site.save(output_file)
+        print(f"Outputted model to {output_file}")
+
+        self.send_response(200)
+
 if __name__ == "__main__":
-    main()
+    print("hello")
+    addr = ("127.0.0.1", 3000)
+    httpd = HTTPServer(addr, ReqHandler)
+    httpd.serve_forever()
+    # createfile()
+
+
