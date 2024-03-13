@@ -27,8 +27,9 @@ class Motors:
         self.speed_limit = 0.5
         # set the correct pulse range (1100 microseconds to 1900 microseconds)
         for motor_num in range(self.num_motors):
-            self.kit.servo[self.motor_channel_table[motor_num]]\
-                .set_pulse_width_range(1100, 1900)
+            self.kit.servo[
+                self.motor_channel_table[motor_num]
+            ].set_pulse_width_range(1100, 1900)
         self.stop_all()
         # each motors needs to receive a neutral signal for at least two
         # seconds, otherwise they won't work
@@ -102,8 +103,15 @@ class Motors:
         for motor_num in range(len(self.motor_velocities)):
             self.drive_motor(motor_num, 0)
 
-    def drive_motors(self, x_velocity=0, y_velocity=0, z_velocity=0,
-                     yaw_velocity=0, pitch_velocity=0, roll_velocity=0):
+    def drive_motors(
+        self,
+        x_velocity=0,
+        y_velocity=0,
+        z_velocity=0,
+        yaw_velocity=0,
+        pitch_velocity=0,
+        roll_velocity=0,
+    ):
         # reset all the velocities to 0
         for i in range(len(self.motor_velocities)):
             self.motor_velocities[i] = 0
@@ -147,4 +155,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

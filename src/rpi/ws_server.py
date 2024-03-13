@@ -2,6 +2,7 @@ import asyncio
 import json
 import websockets
 
+
 # websocket server
 class WSServer:
     # registers the websocket objects of the clients to allow sending data to
@@ -56,8 +57,9 @@ class WSServer:
     @classmethod
     async def handler(cls, websocket, path):
         try:
-            client_info_json = await asyncio.wait_for(websocket.recv(),
-                                                      timeout=2.0)
+            client_info_json = await asyncio.wait_for(
+                websocket.recv(), timeout=2.0
+            )
             print("Client connected!")
         except asyncio.TimeoutError:
             print("Connection failed!")
@@ -74,4 +76,3 @@ class WSServer:
             await cls.web_client_main_handler(websocket, path)
         elif client_type == "web_client_camera":
             await cls.web_client_camera_handler(websocket, path)
-

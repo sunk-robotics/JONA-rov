@@ -66,8 +66,14 @@ class Motors:
         for motor_num in range(6):
             self.drive_motor(motor_num, 0)
 
-    def drive_motors(self, x_velocity=0, y_velocity=0, z_velocity=0,
-                     yaw_velocity=0, roll_velocity=0):
+    def drive_motors(
+        self,
+        x_velocity=0,
+        y_velocity=0,
+        z_velocity=0,
+        yaw_velocity=0,
+        roll_velocity=0,
+    ):
         # reset all the velocities to 0
         for i in range(len(self.motor_velocities)):
             self.motor_velocities[i] = 0
@@ -105,4 +111,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
