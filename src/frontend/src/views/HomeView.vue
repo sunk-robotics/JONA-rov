@@ -5,11 +5,18 @@
 
 <template>
     <main>
+<<<<<<< HEAD
         <Camera cam-url="ws://localhost:8000/" />
         <!-- <Camera cam-url="ws://192.168.100.1:3000"/>
         <Camera cam-url="ws://192.168.100.4:3000"/>
         <Camera cam-url="ws://192.168.100.3:3000"/>
         <SensorData /> -->
+=======
+        <Camera cam-url="ws://192.168.100.1:3000"/>
+        <Camera cam-url="ws://192.168.100.4:3001"/>
+        <Camera cam-url="ws://192.168.100.3:3002"/>
+        <SensorData />
+>>>>>>> 699dfb48244737d2c20dfa19c581f0e3117d7453
     </main>
 </template>
 
