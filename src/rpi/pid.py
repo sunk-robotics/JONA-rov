@@ -1,3 +1,4 @@
+import time
 
 # used to adjust the motor velocities to keep the ROV at a constant position
 class PID:

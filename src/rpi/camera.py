@@ -37,10 +37,10 @@ class WSServer:
 
 def main():
     picam2 = Picamera2()
-    #  picam2.set_controls({"AfMode": 2})
+    picam2.set_controls({"AfMode": 2})
     picam2.configure(picam2.create_video_configuration(
         main={"size": (1920, 1080)}))
-    picam2.start_recording(MJPEGEncoder(35_000_000),
+    picam2.start_recording(MJPEGEncoder(25_000_000),
                            FileOutput(WSServer.output))
 
     loop = asyncio.get_event_loop()

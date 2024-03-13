@@ -14,14 +14,14 @@ class Motors:
         # a table that maps the motor number to the correct channel on the PWM
         # controller
         self.motor_channel_table = {
-            0: 10,
-            1: 9,
-            2: 14,
-            3: 12,
-            4: 13,
-            5: 8,
-            6: 11,
-            7: 15,
+            0: 12,
+            1: 13,
+            2: 8,
+            3: 10,
+            4: 9,
+            5: 14,
+            6: 15,
+            7: 11,
         }
         self.motor_velocities = [0, 0, 0, 0, 0, 0, 0, 0]
         self.speed_limit = 0.5
@@ -135,10 +135,10 @@ class Motors:
 
 def main():
     motors = Motors()
-    motors.drive_motor(4, 0.3)
+    motors.drive_motor(0, 1)
     #  motors.test_motors()
     #  motors.drive_motor(7, 0.15)
-    time.sleep(5)
+    time.sleep(3)
     motors.stop_all()
     #  motors.drive_motors(z_velocity=0.5)
     #  time.sleep(2)

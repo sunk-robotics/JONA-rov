@@ -49,7 +49,8 @@ async def main_server():
     pitch_pid = PID(proportional_gain=0, integral_gain=0, derivative_gain=0)
 
     # multiplier for velocity to set speed limit
-    speed_factor = 0.5
+    speed_factor = 1
+
 
     # lock the controls in a certain state to allow for "autonomous" docking
     motor_lock = False
@@ -96,7 +97,6 @@ async def main_server():
         roll_velocity = joystick_data["dpad"][0] * speed_factor
         speed_toggle = (joystick_data["buttons"]["right_bumper"]
                         - joystick_data["buttons"]["left_bumper"])
-        speed_toggle = False
         vertical_anchor_toggle = joystick_data["buttons"]["north"]
         roll_anchor_toggle = joystick_data["buttons"]["east"]
         pitch_anchor_toggle = joystick_data["buttons"]["south"]
@@ -166,6 +166,7 @@ async def main_server():
                 speed_factor = 1
             elif speed_factor < 0:
                 speed_factor = 0
+            print(f"Speed Factor: {speed_factor}")
             prev_speed_toggle = speed_toggle
 
         # toggle the vertical anchor
