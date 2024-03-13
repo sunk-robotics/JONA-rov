@@ -11,7 +11,6 @@
     scene.background = new Three.Color("black")
 
     const gltfLoader = new GLTFLoader();
-    
 
     gltfLoader.load('/result.glb', (gltfObject) => {
     gltfObject.scene.traverse(obj => {

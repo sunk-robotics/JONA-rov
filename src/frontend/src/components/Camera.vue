@@ -1,8 +1,9 @@
 <script setup lang="ts">
     import { onMounted, type Ref, ref } from 'vue';
-    import { useImageStore } from "@/stores/image"
+    import { RouterLink } from 'vue-router';
+    import { useImageStore } from '@/stores/image';
 
-    const image = useImageStore()
+    let imageStore = useImageStore()
     let decoder;
 
     const props = defineProps<{camUrl: string}>();
@@ -18,25 +19,24 @@
         ctx = canvas.value?.getContext("2d")!;
     })
 
-    wsFeed.addEventListener("message", (event) => {
-        image.set(event.data)
+    wsFeed.addEventListener("message", (event) => {        
         decoder = new ImageDecoder({
             type: "image/jpeg",
             data: event.data
         });
 
         let frame = decoder.decode().then((res: any) => {
-            ctx.drawImage(res.image, 0, 0, 1280, 720)
+            imageStore.set(res.image)
+            ctx.drawImage(res.image, 0, 0, 640, 480)
         })
     })
 
-    function redirectMeasure() {
-        window.location.pathname = "measure"
-    }
 </script>
 
 <template>
-    <canvas ref="canvas" width=1280 height=720 @click="redirectMeasure"></canvas>
+    <router-link to="/measure">
+        <canvas ref="canvas" width=640 height=480></canvas>
+    </router-link>
 </template>
 
 <style scoped>

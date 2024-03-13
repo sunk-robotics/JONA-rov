@@ -25,7 +25,7 @@ const router = createRouter({
     {
       path: "/measure",
       name: "measure",
-      component: MeasureView
+      component: MeasureView,
     }
   ]
 })

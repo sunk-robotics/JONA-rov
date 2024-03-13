@@ -5,10 +5,11 @@
 
 <template>
     <main>
-        <Camera cam-url="ws://192.168.100.1:3000"/>
+        <Camera cam-url="ws://localhost:8000/" />
+        <!-- <Camera cam-url="ws://192.168.100.1:3000"/>
         <Camera cam-url="ws://192.168.100.4:3000"/>
         <Camera cam-url="ws://192.168.100.3:3000"/>
-        <SensorData />
+        <SensorData /> -->
     </main>
 </template>
 
