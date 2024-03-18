@@ -39,8 +39,8 @@ mainWs.addEventListener('message', (event) => {
 
 <template>
     <ul v-if="!isClosed">
-        <li>Internal Temperature: {{ sensorData.internal_temp != null ? `${sensorData.internal_temp}°` : "Unknown" }}</li>
-        <li>External Temperature: {{ sensorData.external_temp != null ? `${(sensorData.external_temp).toFixed(1)}°` : "Unknown" }}</li>
+        <li>Internal Temperature: {{ sensorData.internal_temp != null ? `${sensorData.internal_temp}°C` : "Unknown" }}</li>
+        <li>External Temperature: {{ sensorData.external_temp != null ? `${(sensorData.external_temp).toFixed(1)}°C` : "Unknown" }}</li>
         <li>Depth: {{ sensorData.depth != null ? `${(sensorData.depth).toFixed(1)} m` : "Unknown" }}</li>
         <li>Yaw: {{ sensorData.yaw != null ? `${(sensorData.yaw).toFixed(1)}°` : "Unknown" }}</li>
         <li>Roll: {{ sensorData.roll != null ? `${(sensorData.roll).toFixed(1)}°` : "Unknown" }}</li>
