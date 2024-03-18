@@ -14,14 +14,22 @@ mainWs.addEventListener('open', (event) => {
 mainWs.addEventListener('close', () => isClosed = true)
 
 type SensorData = {
-    temp: number | null,
+    internal_temp: number | null,
+    external_temp: number | null,
     depth: number | null,
     yaw: number | null,
     roll: number | null,
-    pitch: number | null
+    pitch: number | null,
+    voltage_5V: number | null,
+    current_5V: number | null,
+    voltage_12V: number | null,
+    current_12V: number | null
 }
 
-const sensorData = ref<SensorData>({ temp: null, depth: null, yaw: null, roll: null, pitch: null })
+const sensorData = ref<SensorData>({ internal_temp: null, external_temp: null, temp: null, depth: null, yaw: null, roll: null, pitch: null, voltage_5V: null, current_5V: null, voltage_12V: null, current_12V: null })
+
+
+
 
 mainWs.addEventListener('message', (event) => {
     let incomingData: SensorData = JSON.parse(event.data);
@@ -31,7 +39,16 @@ mainWs.addEventListener('message', (event) => {
 
 <template>
     <ul v-if="!isClosed">
-        <li v-for="[field, value] in Object.entries(sensorData)">{{ field }}: {{ value }}</li>
+        <li>Internal Temperature: {{ sensorData.internal_temp != null ? `${sensorData.internal_temp}°` : "Unknown" }}</li>
+        <li>External Temperature: {{ sensorData.external_temp != null ? `${(sensorData.external_temp).toFixed(1)}°` : "Unknown" }}</li>
+        <li>Depth: {{ sensorData.depth != null ? `${(sensorData.depth).toFixed(1)} m` : "Unknown" }}</li>
+        <li>Yaw: {{ sensorData.yaw != null ? `${(sensorData.yaw).toFixed(1)}°` : "Unknown" }}</li>
+        <li>Roll: {{ sensorData.roll != null ? `${(sensorData.roll).toFixed(1)}°` : "Unknown" }}</li>
+        <li>Pitch: {{ sensorData.pitch != null ? `${(sensorData.pitch).toFixed(1)}°` : "Unknown" }}</li>
+        <li>5V Rail Voltage: {{ sensorData.voltage_5V != null ? `${(sensorData.voltage_5V).toFixed(2)} V` : "Unknown" }}</li>
+        <li>5V Rail Current: {{ sensorData.current_5V != null ? `${(sensorData.current_5V).toFixed(1)} A` : "Unknown" }}</li>
+        <li>12V Rail Voltage: {{ sensorData.voltage_12V != null ? `${(sensorData.voltage_12V).toFixed(2)} V` : "Unknown" }}</li>
+        <li>12V Rail Current: {{ sensorData.current_12V != null ? `${(sensorData.current_12V).toFixed(1)} A` : "Unknown" }}</li>
     </ul>
     <h1 v-else>No Data</h1>
 </template>

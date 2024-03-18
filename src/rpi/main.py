@@ -4,9 +4,11 @@ import asyncio
 import board
 from motors import Motors
 from ms5837 import MS5837_02BA
+import json
 import websockets
 from ws_server import WSServer
 from pid import PID
+from power_monitoring import PowerMonitor
 
 # how far the joystick needs to be moved before stabilization is temporarily
 # disabled (0..1)
@@ -22,11 +24,18 @@ async def main_server():
     except OSError:
         print("Unable to connect to depth sensor!")
         depth_sensor = None
+
     try:
         imu = adafruit_bno055.BNO055_I2C(board.I2C())
     except OSError:
         print("Unable to connect IMU!")
         imu = None
+
+    try:
+        power_monitor = PowerMonitor()
+    except OSError:
+        print("Unable to connect to power monitor!")
+        power_monitor = None
 
     vertical_anchor = False
     # adjust the y-velocity to have the ROV remain at a constant depth
@@ -43,7 +52,7 @@ async def main_server():
     roll_anchor = False
     # adjust the roll velocity to keep the ROV stable
     roll_pid = PID(
-        proportional_gain=0.025, integral_gain=0.001, derivative_gain=0.0e-4
+        proportional_gain=-0.025, integral_gain=-0.001, derivative_gain=0.0e-4
     )
 
     pitch_anchor = False
@@ -82,6 +91,52 @@ async def main_server():
         if depth_sensor is not None:
             depth_sensor.read()
 
+        # send data to web client
+        if WSServer.web_client_main is not None:
+            internal_temp = imu.temperature if imu is not None else None
+            external_temp = (
+                depth_sensor.temperature()
+                if depth_sensor is not None
+                else None
+            )
+            depth = depth_sensor.depth() if depth_sensor is not None else None
+            yaw = imu.euler[0] if imu is not None else None
+            roll = imu.euler[1] if imu is not None else None
+            pitch = imu.euler[2] if imu is not None else None
+            voltage_5V = (
+                power_monitor.voltage_5V()
+                if power_monitor is not None
+                else None
+            )
+            current_5V = (
+                power_monitor.current_5V()
+                if power_monitor is not None
+                else None
+            )
+            voltage_12V = (
+                power_monitor.voltage_12V()
+                if power_monitor is not None
+                else None
+            )
+            current_12V = (
+                power_monitor.current_12V()
+                if power_monitor is not None
+                else None
+            )
+            status_info = {
+                "internal_temp": internal_temp,
+                "external_temp": external_temp,
+                "depth": depth,
+                "yaw": yaw,
+                "roll": roll,
+                "pitch": pitch,
+                "voltage_5V": voltage_5V,
+                "current_5V": current_5V,
+                "voltage_12V": voltage_12V,
+                "current_12V": current_12V,
+            }
+            await WSServer.web_client_main.send(json.dumps(status_info))
+
         # if a joystick client hasn't connected yet
         if not joystick_data:
             await asyncio.sleep(0.01)
@@ -93,7 +148,7 @@ async def main_server():
         #  print(imu.euler[2])
         x_velocity = joystick_data["right_stick"][0] * speed_factor
         y_velocity = joystick_data["left_stick"][1] * speed_factor
-        z_velocity = joystick_data["right_stick"][1] * speed_factor
+        z_velocity = -joystick_data["right_stick"][1] * speed_factor
         yaw_velocity = joystick_data["left_stick"][0] * speed_factor
         pitch_velocity = joystick_data["dpad"][1] * speed_factor
         roll_velocity = joystick_data["dpad"][0] * speed_factor
@@ -106,6 +161,8 @@ async def main_server():
         pitch_anchor_toggle = joystick_data["buttons"]["south"]
         yaw_anchor_toggle = joystick_data["buttons"]["west"]
         motor_lock_toggle = joystick_data["buttons"]["start"]
+
+        #  print(f"Roll Angle: {imu.euler[1]}*")
 
         # re-enable the vertical anchor when the z velocity falls below the
         # threshold
@@ -130,7 +187,7 @@ async def main_server():
         # set the yaw velocity according to the yaw PID controller based on
         # current yaw angle
         if yaw_anchor and imu is not None:
-            yaw_angle = imu.euler[1]
+            yaw_angle = imu.euler[0]
             if yaw_angle is not None:
                 yaw_velocity = yaw_pid.compute(yaw_angle)
 
@@ -138,6 +195,10 @@ async def main_server():
         # current roll angle
         if roll_anchor and imu is not None:
             roll_angle = imu.euler[1]
+            print(f"Roll Angle: {roll_angle}°")
+            print(f"Error: {roll_pid.set_point - roll_angle}")
+            print(f"Integral: {roll_pid.integral}")
+
             if roll_angle is not None:
                 roll_velocity = roll_pid.compute(roll_angle)
 
