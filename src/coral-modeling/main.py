@@ -7,7 +7,6 @@ from cadquery import (
     Vector,
     Workplane,
 )
-from cqkit import recentre
 
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import parse_qs
@@ -15,7 +14,6 @@ from urllib.parse import parse_qs
 
 def make_left_pipes(length: float) -> Workplane:
     pvc_radius = 10.766
-    #  pvc_radius = 15
     # center to center width
     width = 332.111
     # center to center height
@@ -33,13 +31,12 @@ def make_left_pipes(length: float) -> Workplane:
             total_height - pvc_radius / 2,
             forConstruction=True,
         )
-        .vertices("<Y and <X")
+        .vertices("<YZ")
         .tag("bottom_left")
         .end()
-        .vertices(">Y and >X")
-        .translate(Vector(-length, padding, height + pvc_radius))
-        #  .tag("bottom_back_left")
-        .tag("top_back_right")
+        .vertices(">YZ")
+        .translate(Vector(-length, padding, -pvc_radius))
+        .tag("end_anchor_point")
         .end()
         .end()
         .rect(width, height, forConstruction=True)
@@ -61,11 +58,11 @@ def make_right_pipes(length: float) -> Workplane:
     return (
         Workplane("YZ")
         .rect(width, total_height - pvc_radius / 2, forConstruction=True)
-        .vertices("<Y and <X")
+        .vertices("<YZ")
         .tag("center_box_anchor_point")
         .end()
-        .vertices(">Y and >X")
-        .translate(Vector(length, 0, total_height - pvc_radius / 4))
+        .vertices(">YZ")
+        .translate(Vector(length, 0, pvc_radius / 4))
         .tag("end_anchor_point")
         .end()
         .end()
@@ -187,8 +184,7 @@ def make_coral_restoration_site(
         # connect the left end to the left pipes
         .constrain(
             "left_end@vertices@>(1, 1, 1)",
-            "left_pipes?top_back_right",
-            #  "left_pipes?bottom_back_left",
+            "left_pipes?end_anchor_point",
             "Point",
         )
         # connect the left pipes to the center box
@@ -305,7 +301,7 @@ def make_coral_restoration_site(
     )
 
 
-def createfile():
+def create_file():
     output_file = "result.glb"
     print("Creating model...")
     coral_restoration_site = make_coral_restoration_site(400, 500, 400)
@@ -365,6 +361,5 @@ if __name__ == "__main__":
     addr = ("127.0.0.1", 3000)
     httpd = HTTPServer(addr, ReqHandler)
     httpd.serve_forever()
-    # createfile()
 
 
