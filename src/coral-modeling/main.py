@@ -312,7 +312,36 @@ def createfile():
     coral_restoration_site.save(output_file)
     print(f"Outputted model to {output_file}")
 
+#Slope of diamond sides 
+SLOPE = 1.732
 
+def findMaxSpeed(z_rotate, x_rotate):
+    x_coord = 0
+    y_coord = 0
+    z_coord = 0
+
+    match z_rotate:
+        case z_rotate < 90:
+            x_coord = (SLOPE * 2) / (math.tan(z_rotate) + SLOPE )
+            y_coord = -SLOPE  * (x_coord) + (SLOPE * 2)
+            
+        case z_rotate < 180:
+            x_coord = (SLOPE * 2) / (math.tan(z_rotate) - SLOPE )
+            y_coord = SLOPE  * (x_coord) + (SLOPE * 2)
+            
+        case z_rotate < 270:
+            x_coord = -(SLOPE * 2) / (math.tan(z_rotate) + SLOPE )
+            y_coord = -SLOPE  * (x_coord) - (SLOPE * 2)
+            
+        case z_rotate < 360:
+            x_coord = -(SLOPE * 2) / (math.tan(z_rotate) - SLOPE )
+            y_coord = SLOPE  * (x_coord) - (SLOPE * 2)
+
+
+    xy_dist = math.sqrt(y^2 + x^2)
+    z_coord = xy_dist * math.sin(x_rotate)
+
+    return (x, y, z)
 
 class ReqHandler(BaseHTTPRequestHandler):
     def do_GET(self):
