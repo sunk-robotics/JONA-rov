@@ -1,6 +1,9 @@
 <script async setup lang="ts">
 import { onMounted, ref } from 'vue';
 import { useImageStore } from "@/stores/image"
+import axios from 'axios';
+
+axios.defaults.withCredentials = true;
 
 let imageStore = useImageStore()
 let ctx: CanvasRenderingContext2D;
@@ -11,6 +14,7 @@ onMounted(() => {
     ctx = frame.value?.getContext("2d")!
     ctx.drawImage(imageStore.get(), 0, 0, 640, 480)
 })
+
 
 // measurement
 const REF_OBJ_LEN = 3;
@@ -28,6 +32,7 @@ let metreMode = ref<Fields>("pixPerInch")
 
 let points: { x: number, y: number }[] = []
 function handleClicks(e: MouseEvent) {
+    
     const [x, y] = [e.offsetX, e.offsetY];
     drawPoint(x, y)
 
@@ -57,14 +62,15 @@ function handleClicks(e: MouseEvent) {
                 )
 
                 lenObj.value[metreMode.value] = pixLen / lenObj.value.pixPerInch
+                console.log(metreMode.value, " is ", lenObj.value[metreMode.value]);
             }
             break;
     }
     if (points.length == 2) {
         points = []
+        
     }
-    console.log(lenObj);
-
+    lenObj.value.topSide = 1000
 }
 
 function drawPoint(x: number, y: number) {
@@ -76,25 +82,22 @@ function drawPoint(x: number, y: number) {
 
 function changeMode(mode: Fields) {
     metreMode.value = mode
+    console.log("measuring: ", mode);
+    
     points = []
 }
 
-function submitData() {
+async function submitData() {
     const { leftSide, rightSide, topSide } = lenObj.value
+    
+
     if (leftSide == 0 || rightSide == 0 || topSide == 0) {
         return
     }
+    console.log("sending data...");
     
-    const url = `localhost:3000/left=${leftSide}&right=${rightSide}&top=${topSide}`
-    let req = new XMLHttpRequest()
-    
-
-    req.addEventListener("load", () => {
-        window.location.pathname = "/coral"
-    })
-
-    req.open("GET", url)
-    req.send()
+    const url = `http://127.0.0.1:3000/left=${leftSide}&right=${rightSide}&top=${topSide}`
+    await axios.get(url)
 }
 
 </script>
@@ -109,8 +112,9 @@ function submitData() {
             <li><button @click="changeMode('topSide')">Top Side Length: {{ lenObj.topSide }} cms</button></li>
             <li><button @click="changeMode('fullLen')">Full Length: {{ lenObj.fullLen }} cms</button></li>
             <li><button @click="changeMode('fullHgt')">Full Height: {{ lenObj.fullHgt }} cms</button></li>
+            <li><button >click me idk</button></li>
         </ul>
-        <button class="submit">Send Data</button>
+        <button class="submit" @click="submitData">Send Data</button>
     </div>
 </template>
 

@@ -12,7 +12,7 @@
 
     const gltfLoader = new GLTFLoader();
 
-    gltfLoader.load('/result.glb', (gltfObject) => {
+    gltfLoader.load('./result.glb', (gltfObject) => {
     gltfObject.scene.traverse(obj => {
         if (obj instanceof Three.Mesh) {
         obj.castShadow = true;

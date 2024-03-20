@@ -16,6 +16,7 @@ mainWs.addEventListener('close', () => isClosed = true)
 type SensorData = {
     internal_temp: number | null,
     external_temp: number | null,
+    temp: number | null, 
     depth: number | null,
     yaw: number | null,
     roll: number | null,
