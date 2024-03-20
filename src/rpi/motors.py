@@ -40,10 +40,10 @@ class Motors:
         # 1 is full throttle forward to an angle where 0 degrees is full
         # throttle reverse and 180 degrees is full throttle forward
         angle = int(velocity * 90) + 90
-        # motor 0 has a shitty connection
-        #  if motor_num == 0:
-        #      return
         self.kit.servo[self.motor_channel_table[motor_num]].angle = angle
+
+    def drive_vector(self):
+
 
     # move the ROV left or right
     def calc_x_velocity(self, velocity: float):
@@ -139,6 +139,72 @@ class Motors:
             time.sleep(2)
             self.drive_motor(motor_num, 0)
         self.stop_all()
+
+    
+    def find_max_speed(z_rotate, x_rotate) -> (float, float, float):
+        x_coord = 0
+        y_coord = 0
+        z_coord = 0
+
+        z_rotate = math.radians(z_rotate)
+        x_rotate = math.radians(x_rotate)
+
+        
+
+        #find max x and y speed on horizontal plane
+        if math.degrees(z_rotate) < 90:
+            x_coord = (SLOPE * 2) / (math.tan(z_rotate) + SLOPE )
+            y_coord = -SLOPE  * (x_coord) + (SLOPE * 2)
+
+        elif math.degrees(z_rotate) < 180:
+            x_coord = (SLOPE * 2) / (math.tan(z_rotate) - SLOPE )
+            y_coord = SLOPE  * (x_coord) + (SLOPE * 2)
+
+        elif math.degrees(z_rotate) < 270:
+            x_coord = -(SLOPE * 2) / (math.tan(z_rotate) + SLOPE )
+            y_coord = -SLOPE  * (x_coord) - (SLOPE * 2)
+
+        elif math.degrees(z_rotate) < 360:
+            x_coord = -(SLOPE * 2) / (math.tan(z_rotate) - SLOPE )
+            y_coord = SLOPE  * (x_coord) - (SLOPE * 2)
+            
+        xy_dist = math.sqrt(y_coord ** 2 + x_coord ** 2)
+
+        #max angle before hitting ceiling
+        max_x_rotate = math.atan((4/xy_dist))
+
+        
+        # check if x_rotate hits ceiling
+        if(x_rotate < max_x_rotate or ( x_rotate > math.radians(180) - max_x_rotate and x_rotate < math.radians(180) + max_x_rotate ) or x_rotate > math.radians(270) + max_x_rotate):
+            # if it doesn't, find z_coord according to x_rotate and xy_dist
+            z_coord = xy_dist * math.sin(x_rotate)
+
+        else:
+            #check for if we are going relatively down or up
+            if x_rotate > math.radians(180): z_coord = -4
+            else: z_coord = 4
+            
+            #scale x and y coords accordingly 
+            new_xy_dist = 4 / math.tan(x_rotate)
+            x_coord *= new_xy_dist / xy_dist
+            y_coord *= new_xy_dist / xy_dist
+            
+
+
+        return (x_coord, y_coord, z_coord)
+
+    
+    def find_motor_scalars(x_coord, y_coord, z_coord) -> (float, float , float):
+        z_scalar = z_coord
+        a_scalar = x_coord / (2 * math.cos(math.pi / 3)) + y_coord / (2 * math.sin(math.pi / 3))
+        b_scalar = x_coord / (2 * math.cos(math.pi / 3)) - y_coord / (2 * math.sin(math.pi / 3))
+        return (a_scalar, -b_scalar, z_scalar)
+    
+    def drive_vector(r, theta, phi):
+        max_speed_coords = find_max_speed(phi, theta)
+        scalars = find_motor_scalars(max_speed_coords[0] / 2, max_speed_coords[1] / 2, max_speed_coords[2] / 4)
+
+
 
 
 def main():
