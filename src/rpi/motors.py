@@ -200,10 +200,17 @@ class Motors:
         b_scalar = x_coord / (2 * math.cos(math.pi / 3)) - y_coord / (2 * math.sin(math.pi / 3))
         return (a_scalar, -b_scalar, z_scalar)
     
+    # drives the ROV according to a vector specified in spherical form (r, θ, ϕ)
     def drive_vector(r, theta, phi):
+        # reset all the motor velocities to 0
+        for i in range(len(self.motor_velocities)):
+            self.motor_velocities[i] = 0
         max_speed_coords = find_max_speed(phi, theta)
-        scalars = find_motor_scalars(max_speed_coords[0] / 2, max_speed_coords[1] / 2, max_speed_coords[2] / 4)
+        a, b, z = find_motor_scalars(max_speed_coords[0] / 2, max_speed_coords[1] / 2, max_speed_coords[2] / 4)
+        self.motor_velocities = [b, a, -a, -b, z, z, z, z]
 
+        for motor_num, velocity in enumerate(self.motor_velocities):
+            self.drive_motor(motor_num, velocity)
 
 
 
