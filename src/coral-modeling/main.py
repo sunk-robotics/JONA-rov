@@ -8,6 +8,7 @@ from cadquery import (
     Workplane,
 )
 
+
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import parse_qs
 
@@ -311,6 +312,10 @@ def create_file():
 
 class ReqHandler(BaseHTTPRequestHandler):
     def do_GET(self):
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.end_headers()
+        self.flush_headers()
+
         parsed_url = parse_qs(self.path)
         print(parsed_url)
         left = int(parsed_url['/left'][0])
@@ -318,13 +323,11 @@ class ReqHandler(BaseHTTPRequestHandler):
         top = int(parsed_url['top'][0])
 
 
-        output_file = "result.glb"
+        output_file = "../frontend/public/result.glb"
         print("Creating model...")
         coral_restoration_site = make_coral_restoration_site(left, right, top)
         coral_restoration_site.save(output_file)
         print(f"Outputted model to {output_file}")
-
-        self.send_response(200)
 
 if __name__ == "__main__":
     print("hello")
