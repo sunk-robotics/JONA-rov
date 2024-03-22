@@ -1,3 +1,4 @@
+import math
 import time
 
 
@@ -28,7 +29,7 @@ class PID:
         d_time = time.time() - self.last_time
         self.last_time = current_time
 
-        # difference between the target and measured acceleration
+        # difference between the target value and measured value
         error = self.set_point - process_value
         #  print(f"Set point: {self.set_point}")
         #  print(f"Process value: {process_value}")
@@ -52,3 +53,33 @@ class PID:
         self.integral = 0
         self.last_time = time.time()
         self.last_error = set_point
+
+
+class RotationalPID(PID):
+    def compute(self, angle):
+        current_time = time.time()
+        d_time = time.time() - self.last_time
+        self.last_time = current_time
+
+        # find the signed smallest difference between the angles
+        error = angle_between(self.set_point, angle)
+        # compute the integral ∫e(t) dt
+        self.integral += error * d_time
+        # compute the derivative
+        d_error = (error - self.last_error) / d_time
+        self.last_error = error
+
+        # add the P, I, and the D together
+        output = (
+            self.proportional_gain * error
+            + self.integral_gain * self.integral
+            + self.derivative_gain * d_error
+        )
+        return output
+
+
+def angle_between(x, y):
+    tau = 2 * math.pi
+    a = (x - y) % tau
+    b = (y - x) % tau
+    return -a if a < b else b
