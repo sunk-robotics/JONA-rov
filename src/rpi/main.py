@@ -128,6 +128,7 @@ async def main_server():
                 "yaw_anchor_enabled": yaw_anchor,
                 "roll_anchor_enabled": roll_anchor,
                 "pitch_anchor_enabled": pitch_anchor,
+                "motor_lock_enabled": motor_lock,
             }
             await WSServer.web_client_main.send(json.dumps(status_info))
 

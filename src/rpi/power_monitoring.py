@@ -20,11 +20,7 @@ class PowerMonitor:
 
     def current_5V(self) -> float:
         return (
-            73.3
-            * self.channel3.value
-            / 2**15
-            * self.ads_range
-            / self.voltage_5V()
+            73.3 * self.channel3.value / 2**15 * self.ads_range / self.voltage_5V()
             - 36.7
         )
 
@@ -33,26 +29,11 @@ class PowerMonitor:
 
     def current_12V(self) -> float:
         return (
-            73.3
-            * self.channel2.value
-            / 2**15
-            * self.ads_range
-            / self.voltage_5V()
+            73.3 * self.channel2.value / 2**15 * self.ads_range / self.voltage_5V()
             - 36.7
         )
 
 
-#  ads = ADS.ADS1015(i2c)
-
-
-#  channel0 = AnalogIn(ads, ADS.P0)
-#  channel1 = AnalogIn(ads, ADS.P1)
-#  channel2 = AnalogIn(ads, ADS.P2)
-#  channel3 = AnalogIn(ads, ADS.P3)
-
-
-#  ads.gain = 2 / 3
-#  adc_range = 4.096 / ads.gain
 def main():
     while True:
         power_monitor = PowerMonitor()
@@ -63,23 +44,6 @@ def main():
         print(f"12V Rail Current: {power_monitor.current_12V():.2f}A")
 
         time.sleep(0.1)
-
-    #  while True:
-    #  five_volt_voltage = channel1.value / 2**15 * adc_range
-    #  twelve_volt_voltage = channel0.value / 2**15 * adc_range * 4
-    #  five_volt_current = (
-    #      73.3 * channel3.value / 2**15 * adc_range / five_volt_voltage - 36.7
-    #  )
-    #  twelve_volt_current = (
-    #      73.3 * channel2.value / 2**15 * adc_range / five_volt_voltage - 36.7
-    #  )
-
-    #  print("------------------------------------------")
-    #  print(f"5V Rail Voltage: {five_volt_voltage:.2f}V")
-    #  print(f"12V Rail Voltage: {twelve_volt_voltage:.2f}V")
-    #  print(f"5V Rail Current: {five_volt_current:.2f}A")
-    #  print(f"12V Rail Current: {twelve_volt_current:.2f}A")
-    #  time.sleep(0.1)
 
 
 if __name__ == "__main__":
