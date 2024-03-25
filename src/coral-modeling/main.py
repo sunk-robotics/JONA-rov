@@ -312,10 +312,6 @@ def create_file():
 
 class ReqHandler(BaseHTTPRequestHandler):
     def do_GET(self):
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.end_headers()
-        self.flush_headers()
-
         parsed_url = parse_qs(self.path)
         print(parsed_url)
         left = int(parsed_url['/left'][0])
@@ -328,6 +324,10 @@ class ReqHandler(BaseHTTPRequestHandler):
         coral_restoration_site = make_coral_restoration_site(left, right, top)
         coral_restoration_site.save(output_file)
         print(f"Outputted model to {output_file}")
+        self.send_response(200)
+    
+    def end_headers(self) -> None:
+        self.send_header('Access-Control-Allow-Origin', '*')
 
 if __name__ == "__main__":
     print("hello")
