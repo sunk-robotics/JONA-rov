@@ -7,7 +7,7 @@ from ms5837 import MS5837_02BA
 import json
 import websockets
 from ws_server import WSServer
-from pid import PID
+from pid import PID, RotationalPID
 from power_monitoring import PowerMonitor
 
 # how far the joystick needs to be moved before stabilization is temporarily
@@ -37,31 +37,29 @@ async def main_server():
         print("Unable to connect to power monitor!")
         power_monitor = None
 
-    vertical_anchor = False
+    depth_anchor = False
     # adjust the y-velocity to have the ROV remain at a constant depth
     # TODO - Likely need to re-tune the PID parameters
-    vertical_pid = PID(
-        proportional_gain=2, integral_gain=0.05, derivative_gain=0.01
-    )
+    depth_pid = PID(proportional_gain=2, integral_gain=0.05, derivative_gain=0.01)
 
     yaw_anchor = False
     # adjust the yaw velocity to keep the ROV stable
     # TODO - Need to tune the PID parameters
-    yaw_pid = PID(proportional_gain=0, integral_gain=0, derivative_gain=0)
+    yaw_pid = RotationalPID(proportional_gain=0, integral_gain=0, derivative_gain=0)
 
     roll_anchor = False
     # adjust the roll velocity to keep the ROV stable
-    roll_pid = PID(
+    roll_pid = RotationalPID(
         proportional_gain=-0.025, integral_gain=-0.001, derivative_gain=0.0e-4
     )
 
     pitch_anchor = False
     # adjust the pitch velocity to keep the ROV stable
     # TODO - Need to tune the PID parameters
-    pitch_pid = PID(proportional_gain=0, integral_gain=0, derivative_gain=0)
+    pitch_pid = RotationalPID(proportional_gain=0, integral_gain=0, derivative_gain=0)
 
     # multiplier for velocity to set speed limit
-    speed_factor = 1
+    speed_multiplier = 1
 
     # lock the controls in a certain state to allow for "autonomous" docking
     motor_lock = False
@@ -77,13 +75,16 @@ async def main_server():
 
     # stores the last button press of the velocity toggle button
     prev_speed_toggle = None
-    prev_vertical_anchor_toggle = None
+    prev_depth_anchor_toggle = None
     prev_roll_anchor_toggle = None
     prev_pitch_anchor_toggle = None
     prev_yaw_anchor_toggle = None
     prev_motor_lock_toggle = None
 
     prev_z_velocity = 0
+    prev_yaw_velocity = 0
+    prev_roll_velocity = 0
+    prev_pitch_velocity = 0
 
     print("Server started!")
     while True:
@@ -91,38 +92,23 @@ async def main_server():
         if depth_sensor is not None:
             depth_sensor.read()
 
+        # read sensor information
+        internal_temp = imu.temperature if imu is not None else None
+        external_temp = depth_sensor.temperature() if depth_sensor is not None else None
+        depth = depth_sensor.depth() if depth_sensor is not None else None
+        yaw = imu.euler[0] if imu is not None else None
+        roll = imu.euler[1] if imu is not None else None
+        pitch = imu.euler[2] if imu is not None else None
+        x_accel = imu.linear_acceleration[0]
+        y_accel = imu.linear_acceleration[1]
+        z_accel = imu.linear_acceleration[2]
+        voltage_5V = power_monitor.voltage_5V() if power_monitor is not None else None
+        current_5V = power_monitor.current_5V() if power_monitor is not None else None
+        voltage_12V = power_monitor.voltage_12V() if power_monitor is not None else None
+        current_12V = power_monitor.current_12V() if power_monitor is not None else None
+
         # send data to web client
         if WSServer.web_client_main is not None:
-            internal_temp = imu.temperature if imu is not None else None
-            external_temp = (
-                depth_sensor.temperature()
-                if depth_sensor is not None
-                else None
-            )
-            depth = depth_sensor.depth() if depth_sensor is not None else None
-            yaw = imu.euler[0] if imu is not None else None
-            roll = imu.euler[1] if imu is not None else None
-            pitch = imu.euler[2] if imu is not None else None
-            voltage_5V = (
-                power_monitor.voltage_5V()
-                if power_monitor is not None
-                else None
-            )
-            current_5V = (
-                power_monitor.current_5V()
-                if power_monitor is not None
-                else None
-            )
-            voltage_12V = (
-                power_monitor.voltage_12V()
-                if power_monitor is not None
-                else None
-            )
-            current_12V = (
-                power_monitor.current_12V()
-                if power_monitor is not None
-                else None
-            )
             status_info = {
                 "internal_temp": internal_temp,
                 "external_temp": external_temp,
@@ -130,84 +116,84 @@ async def main_server():
                 "yaw": yaw,
                 "roll": roll,
                 "pitch": pitch,
+                "x_accel": x_accel,
+                "y_accel": y_accel,
+                "z_accel": z_accel,
                 "voltage_5V": voltage_5V,
                 "current_5V": current_5V,
                 "voltage_12V": voltage_12V,
                 "current_12V": current_12V,
+                "speed_multiplier": speed_multiplier,
+                "depth_anchor_enabled": depth_anchor,
+                "yaw_anchor_enabled": yaw_anchor,
+                "roll_anchor_enabled": roll_anchor,
+                "pitch_anchor_enabled": pitch_anchor,
             }
             await WSServer.web_client_main.send(json.dumps(status_info))
 
-        # if a joystick client hasn't connected yet
-        if not joystick_data:
-            await asyncio.sleep(0.01)
-            continue
+        # set all the velocities to 0 if there's no joystick connected
+        if joystick_data:
+            x_velocity = joystick_data["right_stick"][0] * speed_multiplier
+            y_velocity = joystick_data["left_stick"][1] * speed_multiplier
+            z_velocity = -joystick_data["right_stick"][1] * speed_multiplier
+            yaw_velocity = joystick_data["left_stick"][0] * speed_multiplier
+            pitch_velocity = joystick_data["dpad"][1] * speed_multiplier
+            roll_velocity = joystick_data["dpad"][0] * speed_multiplier
+            speed_toggle = (
+                joystick_data["buttons"]["right_bumper"]
+                - joystick_data["buttons"]["left_bumper"]
+            )
+            depth_anchor_toggle = joystick_data["buttons"]["north"]
+            roll_anchor_toggle = joystick_data["buttons"]["east"]
+            pitch_anchor_toggle = joystick_data["buttons"]["south"]
+            yaw_anchor_toggle = joystick_data["buttons"]["west"]
+            motor_lock_toggle = joystick_data["buttons"]["start"]
+        else:
+            x_velocity = 0
+            y_velocity = 0
+            z_velocity = 0
+            yaw_velocity = 0
+            pitch_velocity = 0
+            roll_velocity = 0
+            speed_toggle = 0
+            depth_anchor_toggle = 0
+            pitch_anchor_toggle = 0
+            motor_lock_toggle = 0
 
-        #  print(f"Depth: {depth_sensor.depth() * 100:2f}cm")
-        #  print(imu.euler[0])
-        #  print(imu.euler[1])
-        #  print(imu.euler[2])
-        x_velocity = joystick_data["right_stick"][0] * speed_factor
-        y_velocity = joystick_data["left_stick"][1] * speed_factor
-        z_velocity = -joystick_data["right_stick"][1] * speed_factor
-        yaw_velocity = joystick_data["left_stick"][0] * speed_factor
-        pitch_velocity = joystick_data["dpad"][1] * speed_factor
-        roll_velocity = joystick_data["dpad"][0] * speed_factor
-        speed_toggle = (
-            joystick_data["buttons"]["right_bumper"]
-            - joystick_data["buttons"]["left_bumper"]
-        )
-        vertical_anchor_toggle = joystick_data["buttons"]["north"]
-        roll_anchor_toggle = joystick_data["buttons"]["east"]
-        pitch_anchor_toggle = joystick_data["buttons"]["south"]
-        yaw_anchor_toggle = joystick_data["buttons"]["west"]
-        motor_lock_toggle = joystick_data["buttons"]["start"]
-
-        #  print(f"Roll Angle: {imu.euler[1]}*")
-
-        # re-enable the vertical anchor when the z velocity falls below the
+        # re-enable the depth anchor when the z velocity falls below the
         # threshold
         if (
-            vertical_anchor
-            and z_velocity < DESTABLE_THRESH
-            and prev_z_velocity > DESTABLE_THRESH
+            depth_anchor
+            and abs(z_velocity) < DESTABLE_THRESH
+            and abs(prev_z_velocity) > DESTABLE_THRESH
         ):
-            vertical_pid.update_set_point(depth_sensor.depth())
+            depth_pid.update_set_point(depth_sensor.depth())
 
-        # set the z velocity according to the vertical PID controller based on
-        # current depth, the vertical anchor should be temporarily disabled
+        # set the z velocity according to the depth PID controller based on
+        # current depth, the depth anchor should be temporarily disabled
         # when the z velocity is greater than a certain threshold in order to
-        # give the pilot control over the depth when the vertical anchor is on
-        if (
-            vertical_anchor
-            and depth_sensor is not None
-            and z_velocity < DESTABLE_THRESH
-        ):
-            z_velocity = vertical_pid.compute(depth_sensor.depth())
+        # give the pilot control over the depth when the depth anchor is on
+        if depth_anchor and depth is not None and abs(z_velocity) < DESTABLE_THRESH:
+            z_velocity = depth_pid.compute(depth)
 
         # set the yaw velocity according to the yaw PID controller based on
         # current yaw angle
-        if yaw_anchor and imu is not None:
-            yaw_angle = imu.euler[0]
-            if yaw_angle is not None:
-                yaw_velocity = yaw_pid.compute(yaw_angle)
+        if yaw_anchor and yaw is not None and abs(yaw_velocity) < DESTABLE_THRESH:
+            yaw_velocity = yaw_pid.compute(yaw)
 
         # set the roll velocity according to the roll PID controller based on
         # current roll angle
-        if roll_anchor and imu is not None:
-            roll_angle = imu.euler[1]
-            print(f"Roll Angle: {roll_angle}°")
-            print(f"Error: {roll_pid.set_point - roll_angle}")
-            print(f"Integral: {roll_pid.integral}")
-
-            if roll_angle is not None:
-                roll_velocity = roll_pid.compute(roll_angle)
+        if roll_anchor and roll is not None and abs(roll_velocity) < DESTABLE_THRESH:
+            #  print(f"Roll Angle: {roll}°")
+            #  print(f"Error: {roll_pid.set_point - roll}")
+            roll_velocity = roll_pid.compute(roll)
 
         # set the pitch velocity according to the pitch PID controller based on
         # current pitch angle
-        if pitch_anchor and imu is not None:
-            pitch_angle = imu.euler[2]
-            if pitch_angle is not None:
-                pitch_velocity = pitch_pid.compute(pitch_angle)
+        if pitch_anchor and pitch is not None and abs(pitch_velocity) < DESTABLE_THRESH:
+            #  print(f"Pitch Angle: {pitch}°")
+            #  print(f"Error: {pitch_pid.set_point - pitch}")
+            pitch_velocity = pitch_pid.compute(pitch)
 
         if motor_lock:
             x_velocity = locked_velocities["x_velocity"]
@@ -230,75 +216,62 @@ async def main_server():
         # increase or decrease speed when the dpad buttons are pressed
         if speed_toggle != prev_speed_toggle:
             # make sure the speed doesn't exceed 1
-            if speed_toggle > 0 and speed_factor < 1:
-                speed_factor += 0.25
+            if speed_toggle > 0 and speed_multiplier < 1:
+                speed_multiplier += 0.25
             # make sure the speed doesn't fall below 0.25
-            if speed_toggle < 0 and speed_factor >= 0.25:
-                speed_factor -= 0.25
+            if speed_toggle < 0 and speed_multiplier >= 0.25:
+                speed_multiplier -= 0.25
 
-            # just in case the speed factor ends up out of range
-            if speed_factor > 1:
-                speed_factor = 1
-            elif speed_factor < 0:
-                speed_factor = 0
-            print(f"Speed Factor: {speed_factor}")
+            # just in case the speed multiplier ends up out of range
+            if speed_multiplier > 1:
+                speed_multiplier = 1
+            elif speed_multiplier < 0:
+                speed_multiplier = 0
+            print(f"Speed Multiplier: {speed_multiplier}")
             prev_speed_toggle = speed_toggle
 
-        # toggle the vertical anchor
+        # toggle the depth anchor
         if (
             depth_sensor is not None
-            and vertical_anchor_toggle
-            and not prev_vertical_anchor_toggle
+            and depth_anchor_toggle
+            and not prev_depth_anchor_toggle
         ):
-            if vertical_anchor:
+            if depth_anchor:
                 print("Vertical anchor disabled!")
-                vertical_anchor = False
+                depth_anchor = False
             elif depth_sensor is not None:
-                vertical_anchor = True
-                vertical_pid.update_set_point(depth_sensor.depth())
-                print(
-                    f"Vertical anchor enabled at: {vertical_pid.set_point} m"
-                )
+                depth_anchor = True
+                depth_pid.update_set_point(depth_sensor.depth())
+                print(f"Vertical anchor enabled at: {depth_pid.set_point} m")
 
         # toggle the yaw anchor
-        if (
-            imu is not None
-            and yaw_anchor_toggle
-            and not prev_yaw_anchor_toggle
-        ):
+        if imu is not None and yaw_anchor_toggle and not prev_yaw_anchor_toggle:
             if yaw_anchor:
                 print("Pitch anchor disabled!")
+                yaw_anchor = False
             elif depth_sensor is not None:
                 yaw_anchor = True
-                yaw_pid.update_set_point(imu.euler[2])
+                yaw_pid.update_set_point(yaw)
                 print(f"Pitch anchor enabled at: {yaw_pid.set_point}°")
 
         # toggle the roll anchor
-        if (
-            imu is not None
-            and roll_anchor_toggle
-            and not prev_roll_anchor_toggle
-        ):
+        if imu is not None and roll_anchor_toggle and not prev_roll_anchor_toggle:
             if roll_anchor:
                 print("Roll anchor disabled!")
                 roll_anchor = False
             elif depth_sensor is not None:
                 roll_anchor = True
-                roll_pid.update_set_point(imu.euler[1])
+                roll_pid.update_set_point(roll)
                 print(f"Roll anchor enabled at: {roll_pid.set_point}°")
 
         # toggle the pitch anchor
-        if (
-            imu is not None
-            and pitch_anchor_toggle
-            and not prev_pitch_anchor_toggle
-        ):
+        if imu is not None and pitch_anchor_toggle and not prev_pitch_anchor_toggle:
             if pitch_anchor:
                 print("Pitch anchor disabled!")
                 pitch_anchor = False
             elif depth_sensor is not None:
                 pitch_anchor = True
-                pitch_pid.update_set_point(imu.euler[0])
+                pitch_pid.update_set_point(pitch)
                 print(f"Pitch anchor enabled at: {pitch_pid.set_point}°")
 
         # toggle the motor lock
@@ -316,18 +289,21 @@ async def main_server():
                 locked_velocities["roll_velocity"] = roll_velocity
                 print("Motor lock enabled!")
 
-        prev_vertical_anchor_toggle = vertical_anchor_toggle
+        prev_depth_anchor_toggle = depth_anchor_toggle
         prev_roll_anchor_toggle = roll_anchor_toggle
         prev_motor_lock_toggle = motor_lock_toggle
+
+        prev_z_velocity = z_velocity
+        prev_yaw_velocity = yaw_velocity
+        prev_roll_velocity = roll_velocity
+        prev_pitch_velocity = pitch_velocity
 
         await asyncio.sleep(0.01)
 
 
 def main():
     loop = asyncio.get_event_loop()
-    ws_server = websockets.serve(
-        WSServer.handler, "0.0.0.0", 8765, ping_interval=None
-    )
+    ws_server = websockets.serve(WSServer.handler, "0.0.0.0", 8765, ping_interval=None)
     asyncio.ensure_future(ws_server)
     asyncio.ensure_future(main_server())
     loop.run_forever()
