@@ -1,7 +1,8 @@
-<script async setup lang="ts">
+<script setup lang="ts">
 import { onMounted, ref } from 'vue';
 import { useImageStore } from "@/stores/image"
 import axios from 'axios';
+import router from '@/router';
 
 axios.defaults.withCredentials = true;
 
@@ -9,10 +10,14 @@ let imageStore = useImageStore()
 let ctx: CanvasRenderingContext2D;
 const frame = ref<HTMLCanvasElement | null>(null)
 onMounted(() => {
+    
     frame.value?.focus()
-
     ctx = frame.value?.getContext("2d")!
+    if (imageStore.image == null) {
+        return
+    }
     ctx.drawImage(imageStore.get(), 0, 0, 640, 480)
+
 })
 
 
@@ -68,9 +73,7 @@ function handleClicks(e: MouseEvent) {
     }
     if (points.length == 2) {
         points = []
-        
     }
-    lenObj.value.topSide = 1000
 }
 
 function drawPoint(x: number, y: number) {
@@ -96,9 +99,18 @@ async function submitData() {
     }
     console.log("sending data...");
     
-    const url = `http://127.0.0.1:3000/left=${leftSide}&right=${rightSide}&top=${topSide}`
-    await axios.get(url)
+    const url = `http://127.0.0.1:3000/left=${Math.round(leftSide) * 10}&right=${Math.round(rightSide) * 10}&top=${Math.round(topSide) * 10}`
+    try { 
+        await fetch(url, { credentials: "omit" } ) 
+    } catch (e) {
+        console.log("error...");
+        
+    }
+    console.log("redirecting...");
+    
+    router.push("/coral")
 }
+
 
 </script>
 
@@ -107,12 +119,11 @@ async function submitData() {
         <canvas ref="frame" width="640" height="480" @click="handleClicks"></canvas>
         <ul>
             <li><button>Reference Obj. Len: {{ REF_OBJ_LEN }} cms</button></li>
-            <li><button @click="changeMode('leftSide')">Left Side Length: {{ lenObj.leftSide }} cms</button></li>
-            <li><button @click="changeMode('rightSide')">Right Side Length: {{ lenObj.rightSide }} cms</button></li>
-            <li><button @click="changeMode('topSide')">Top Side Length: {{ lenObj.topSide }} cms</button></li>
-            <li><button @click="changeMode('fullLen')">Full Length: {{ lenObj.fullLen }} cms</button></li>
-            <li><button @click="changeMode('fullHgt')">Full Height: {{ lenObj.fullHgt }} cms</button></li>
-            <li><button >click me idk</button></li>
+            <li><button @click="changeMode('leftSide')">Left Side Length: {{ lenObj.leftSide.toPrecision(4) }} cms</button></li>
+            <li><button @click="changeMode('rightSide')">Right Side Length: {{ lenObj.rightSide.toPrecision(4) }} cms</button></li>
+            <li><button @click="changeMode('topSide')">Top Side Length: {{ lenObj.topSide.toPrecision(4) }} cms</button></li>
+            <li><button @click="changeMode('fullLen')">Full Length: {{ lenObj.fullLen.toPrecision(4) }} cms</button></li>
+            <li><button @click="changeMode('fullHgt')">Full Height: {{ lenObj.fullHgt.toPrecision(4) }} cms</button></li>
         </ul>
         <button class="submit" @click="submitData">Send Data</button>
     </div>
@@ -131,5 +142,16 @@ div {
     position: fixed;
     top: 10rem;
     font-size: 3rem;
+    width: auto;
+    
+}
+
+li {
+   width: 100%; 
+}
+
+button {
+    width: 100%;
+    text-align: center;
 }
 </style>

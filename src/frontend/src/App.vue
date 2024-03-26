@@ -3,7 +3,6 @@
   import { gamepad_ws, main } from './scripts/gamepad';
   gamepad_ws;
 
-
   main()
 </script>
 
