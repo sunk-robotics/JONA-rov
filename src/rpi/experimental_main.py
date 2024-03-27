@@ -58,7 +58,7 @@ async def main_server():
     pitch_anchor = False
     # adjust the pitch velocity to keep the ROV stable
     # TODO - Need to tune the PID parameters
-    pitch_pid = RotationalPID(proportional_gain=0, integral_gain=0, derivative_gain=0)
+    pitch_pid = RotationalPID(proportional_gain=0.03, integral_gain=0, derivative_gain=0)
 
     # multiplier for velocity to set speed limit
     speed_multiplier = 1

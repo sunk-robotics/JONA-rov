@@ -49,14 +49,14 @@ async def main_server():
 
     roll_anchor = False
     # adjust the roll velocity to keep the ROV stable
-    roll_pid = RotationalPID(
-        proportional_gain=-0.025, integral_gain=-0.001, derivative_gain=0.0e-4
+    roll_pid = PID(
+        proportional_gain=-0.03, integral_gain=-0.001, derivative_gain=0.0e-4
     )
 
     pitch_anchor = False
     # adjust the pitch velocity to keep the ROV stable
     # TODO - Need to tune the PID parameters
-    pitch_pid = RotationalPID(proportional_gain=0, integral_gain=0, derivative_gain=0)
+    pitch_pid = PID(proportional_gain=0.03, integral_gain=0, derivative_gain=0)
 
     # multiplier for velocity to set speed limit
     speed_multiplier = 1
@@ -187,9 +187,10 @@ async def main_server():
         # set the roll velocity according to the roll PID controller based on
         # current roll angle
         if roll_anchor and roll is not None and abs(roll_velocity) < DESTABLE_THRESH:
-            #  print(f"Roll Angle: {roll}°")
-            #  print(f"Error: {roll_pid.set_point - roll}")
+            print(f"Roll Angle: {roll}°")
+            print(f"Error: {roll_pid.set_point - roll}")
             roll_velocity = roll_pid.compute(roll)
+            print(roll_velocity)
 
         # set the pitch velocity according to the pitch PID controller based on
         # current pitch angle
@@ -294,6 +295,7 @@ async def main_server():
 
         prev_depth_anchor_toggle = depth_anchor_toggle
         prev_roll_anchor_toggle = roll_anchor_toggle
+        prev_pitch_anchor_toggle = pitch_anchor_toggle
         prev_motor_lock_toggle = motor_lock_toggle
 
         prev_z_velocity = z_velocity
