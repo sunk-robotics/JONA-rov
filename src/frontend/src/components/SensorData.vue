@@ -7,8 +7,7 @@ import TempGraph from './graphs/TempGraph.vue';
 import { useSensorDataStore } from '@/stores/sensorData';
 
 const sensorData = useSensorDataStore()
-// let url = "ws://192.168.100.1:8765";
-let url = "ws://127.0.0.1:8765";
+let url = "ws://192.168.100.1:8765";
 
 let mainWs = new WebSocket(url)
 const wsInfo = { 'client_type': 'web_client_main' }
