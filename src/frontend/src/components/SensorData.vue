@@ -6,14 +6,10 @@ import MotionGraph from './graphs/MotionGraph.vue';
 import TempGraph from './graphs/TempGraph.vue';
 import { useSensorDataStore } from '@/stores/sensorData';
 
-<<<<<<< HEAD
 const sensorData = useSensorDataStore()
-let url = "ws://192.168.100.1:8765";
+let url = "ws://192.168.0.102:8765";
 
 let mainWs = new WebSocket(url)
-=======
-let mainWs = new WebSocket("ws://192.168.0.102:8765")
->>>>>>> 4fd3805 (ooga)
 const wsInfo = { 'client_type': 'web_client_main' }
 
 mainWs.addEventListener('open', (event) => {
