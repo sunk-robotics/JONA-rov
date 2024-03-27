@@ -83,6 +83,8 @@ async def main_server():
     prev_yaw_anchor_toggle = None
     prev_motor_lock_toggle = None
 
+    depth_anchor_vector = (0, 0, 0)
+
     prev_z_velocity = 0
     prev_yaw_velocity = 0
     prev_roll_velocity = 0
@@ -101,9 +103,9 @@ async def main_server():
         yaw = imu.euler[0] if imu is not None else None
         roll = imu.euler[1] if imu is not None else None
         pitch = imu.euler[2] if imu is not None else None
-        x_accel = imu.linear_acceleration[0]
-        y_accel = imu.linear_acceleration[1]
-        z_accel = imu.linear_acceleration[2]
+        x_accel = imu.linear_acceleration[0] if imu is not None else None
+        y_accel = imu.linear_acceleration[1] if imu is not None else None
+        z_accel = imu.linear_acceleration[2] if imu is not None else None
         voltage_5V = power_monitor.voltage_5V() if power_monitor is not None else None
         current_5V = power_monitor.current_5V() if power_monitor is not None else None
         voltage_12V = power_monitor.voltage_12V() if power_monitor is not None else None
@@ -160,6 +162,8 @@ async def main_server():
             roll_velocity = 0
             speed_toggle = 0
             depth_anchor_toggle = 0
+            yaw_anchor_toggle = 0
+            roll_anchor_toggle = 0
             pitch_anchor_toggle = 0
             motor_lock_toggle = 0
 
@@ -228,7 +232,7 @@ async def main_server():
         #      pitch_velocity,
         #      roll_velocity,
         #  )
-        motors.drive_vector(*translation_vector, *rotation_vector)
+        motors.drive_vector(translation_vector, rotation_vector)
 
         # increase or decrease speed when the dpad buttons are pressed
         if speed_toggle != prev_speed_toggle:

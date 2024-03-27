@@ -226,6 +226,14 @@ class Motors:
         self.calc_roll_velocity(roll)
         self.calc_pitch_velocity(pitch)
 
+        # make sure the motors don't exceed the speed limit
+        for motor_num in range(len(self.motor_velocities)):
+            if self.motor_velocities[motor_num] > self.speed_limit:
+                self.motor_velocities[motor_num] = self.speed_limit
+            elif self.motor_velocities[motor_num] < -self.speed_limit:
+                self.motor_velocities[motor_num] = -self.speed_limit
+
+
         for motor_num, velocity in enumerate(self.motor_velocities):
             self.drive_motor(motor_num, velocity)
 

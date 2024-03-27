@@ -157,6 +157,8 @@ async def main_server():
             pitch_velocity = 0
             roll_velocity = 0
             speed_toggle = 0
+            yaw_anchor_toggle = 0
+            roll_anchor_toggle = 0
             depth_anchor_toggle = 0
             pitch_anchor_toggle = 0
             motor_lock_toggle = 0
