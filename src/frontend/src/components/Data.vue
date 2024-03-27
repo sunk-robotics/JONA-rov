@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { Ref } from 'vue';
+import { useSensorDataStore } from '@/stores/sensorData';
 
 type SensorData = {
     internal_temp: number | null,
@@ -24,37 +25,36 @@ type SensorData = {
     motor_lock_enabled: boolean | null
 }
 
-const props = defineProps<{ data: Ref<SensorData> }>();
-let sensorData = props.data;
+const sensorData = useSensorDataStore() 
 </script>
 
 <template>
     <ul>
-        <li>Internal Temperature: {{ sensorData.internal_temp != null ? `${sensorData.internal_temp}°C` : "N/A" }}</li>
-        <li>External Temperature: {{ sensorData.external_temp != null ? `${(sensorData.external_temp).toFixed(1)}°C` : "N/A" }}</li>
-        <li>Depth: {{ sensorData.depth != null ? `${(sensorData.depth).toFixed(1)} m` : "Unknown" }}</li>
-        <li>Yaw: {{ sensorData.yaw != null ? `${(sensorData.yaw).toFixed(1)}°` : "N/A" }}</li>
-        <li>Roll: {{ sensorData.roll != null ? `${(sensorData.roll).toFixed(1)}°` : "N/A" }}</li>
-        <li>Pitch: {{ sensorData.pitch != null ? `${(sensorData.pitch).toFixed(1)}°` : "N/A" }}</li>
-        <li>5V Rail Voltage: {{ sensorData.voltage_5V != null ? `${(sensorData.voltage_5V).toFixed(2)} V` : "N/A" }}</li>
-        <li>5V Rail Current: {{ sensorData.current_5V != null ? `${(sensorData.current_5V).toFixed(1)} A` : "N/A" }}</li>
-        <li>12V Rail Voltage: {{ sensorData.voltage_12V != null ? `${(sensorData.voltage_12V).toFixed(2)} V` : "N/A" }}</li>
-        <li>12V Rail Current: {{ sensorData.current_12V != null ? `${(sensorData.current_12V).toFixed(1)} A` : "N/A" }}</li>
-        <li>X Acceleration: {{ sensorData.x_accel != null ? sensorData.x_accel.toString() : "N/A" }}</li>
-        <li>Y Acceleration: {{ sensorData.y_accel != null ? sensorData.y_accel.toString() : "N/A"}}</li>
-        <li>Z Acceleration: {{ sensorData.z_accel != null ? sensorData.z_accel.toString() : "N/A" }}</li>
-        <li>Speed Multiplier: {{ sensorData.speed_multiplier != null ? sensorData.speed_multiplier.toString() : "N/A" }}</li>
-        <li>Depth Anchor Enabled?: {{ sensorData.depth_anchor_enabled != null ? sensorData.depth_anchor_enabled.toString() : "N/A" }}</li>
-        <li>Yaw Anchor Enabled?: {{ sensorData.yaw_anchor_enabled != null ? sensorData.yaw_anchor_enabled.toString() : "N/A" }}</li>
-        <li>Roll Anchor Enabled?: {{ sensorData.roll_anchor_enabled != null ? sensorData.roll_anchor_enabled.toString() : "N/A" }}</li>
-        <li>Pitch Anchor Enabled?: {{ sensorData.pitch_anchor_enabled != null ? sensorData.pitch_anchor_enabled.toString() : "N/A" }}</li>
-        <li>Motor Lock Enabled?: {{ sensorData.motor_lock_enabled != null ? sensorData.motor_lock_enabled.toString() : "N/A" }}</li>
+        <li>Internal Temperature: {{ sensorData.get('internal_temp') != null ? `${sensorData.get('internal_temp')}°C` : "N/A" }}</li>
+        <li>External Temperature: {{ sensorData.get('external_temp') != null ? `${(sensorData.get('external_temp'))}°C` : "N/A" }}</li>
+        <li>Depth: {{ sensorData.get('depth') != null ? `${sensorData.get('depth')} m` : "Unknown" }}</li>
+        <li>Yaw: {{ sensorData.get('yaw') != null ? `${sensorData.get('yaw')}°` : "N/A" }}</li>
+        <li>Roll: {{ sensorData.get('roll') != null ? `${(sensorData.get('roll'))}°` : "N/A" }}</li>
+        <li>Pitch: {{ sensorData.get('pitch') != null ? `${(sensorData.get('pitch'))}°` : "N/A" }}</li>
+        <li>5V Rail Voltage: {{ sensorData.get('voltage_5V') != null ? `${sensorData.get('voltage_5V')} V` : "N/A" }}</li>
+        <li>5V Rail Current: {{ sensorData.get('current_5V') != null ? `${(sensorData.get('current_5V'))} A` : "N/A" }}</li>
+        <li>12V Rail Voltage: {{ sensorData.get('voltage_12V') != null ? `${(sensorData.get('voltage_12V'))} V` : "N/A" }}</li>
+        <li>12V Rail Current: {{ sensorData.get('current_12V') != null ? `${(sensorData.get('current_12V'))} A` : "N/A" }}</li>
+        <li>X Acceleration: {{ sensorData.get('x_accel') != null ? sensorData.get('x_accel')!.toString() : "N/A" }}</li>
+        <li>Y Acceleration: {{ sensorData.get('y_accel') != null ? sensorData.get('y_accel')!.toString() : "N/A"}}</li>
+        <li>Z Acceleration: {{ sensorData.get('z_accel') != null ? sensorData.get('z_accel')!.toString() : "N/A" }}</li>
+        <li>Speed Multiplier: {{ sensorData.get('speed_multiplier') != null ? sensorData.get('speed_multiplier')!.toString() : "N/A" }}</li>
+        <li>Depth Anchor Enabled?: {{ sensorData.get('depth_anchor_enabled') != null ? sensorData.get('depth_anchor_enabled')!.toString() : "N/A" }}</li>
+        <li>Yaw Anchor Enabled?: {{ sensorData.get('yaw_anchor_enabled') != null ? sensorData.get('yaw_anchor_enabled')!.toString() : "N/A" }}</li>
+        <li>Roll Anchor Enabled?: {{ sensorData.get('roll_anchor_enabled') != null ? sensorData.get('roll_anchor_enabled')!.toString() : "N/A" }}</li>
+        <li>Pitch Anchor Enabled?: {{ sensorData.get('pitch_anchor_enabled') != null ? sensorData.get('pitch_anchor_enabled')!.toString() : "N/A" }}</li>
+        <li>Motor Lock Enabled?: {{ sensorData.get('motor_lock_enabled') != null ? sensorData.get('motor_lock_enabled')!.toString() : "N/A" }}</li>
     </ul>
 </template>
 
 <style scoped>
 ul {
-    width: 90%;
+    width: 100%;
     height: 100%;
     /* align-items: center; */
     list-style-type: none;

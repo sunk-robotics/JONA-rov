@@ -1,18 +1,22 @@
 <script setup lang="ts">
 import { ref, type Ref } from 'vue';
 import Data from './Data.vue';
+import ElectricGraph from "./graphs/ElectricGraph.vue"
+import MotionGraph from './graphs/MotionGraph.vue';
+import TempGraph from './graphs/TempGraph.vue';
+import { useSensorDataStore } from '@/stores/sensorData';
 
-let mainWs = new WebSocket("ws://192.168.100.1:8765")
+const sensorData = useSensorDataStore()
+// let url = "ws://192.168.100.1:8765";
+let url = "ws://127.0.0.1:8765";
+
+let mainWs = new WebSocket(url)
 const wsInfo = { 'client_type': 'web_client_main' }
-
-let isClosed = false;
 
 mainWs.addEventListener('open', (event) => {
     mainWs.send(JSON.stringify(wsInfo));
-    isClosed = false;
 })
 
-mainWs.addEventListener('close', () => isClosed = true)
 
 type dataDisplayStyle = "electric-graph" | "motion-graph" | "text-all" | "temp-graph"
 let displayMode: Ref<dataDisplayStyle> = ref("text-all") 
@@ -40,33 +44,9 @@ type SensorData = {
     motor_lock_enabled: boolean | null
 }
 
-const sensorData = ref<SensorData>({ 
-    internal_temp: null, 
-    external_temp: null, 
-    temp: null, 
-    depth: null, 
-    yaw: null, 
-    roll: null, 
-    pitch: null, 
-    voltage_5V: null, 
-    current_5V: null, 
-    voltage_12V: null, 
-    current_12V: null,
-    x_accel: null,
-    y_accel: null,
-    z_accel: null,
-    speed_multiplier: null,
-    depth_anchor_enabled: null,
-    yaw_anchor_enabled: null,
-    roll_anchor_enabled: null,
-    pitch_anchor_enabled: null,
-    motor_lock_enabled: null
-})
-
-
 mainWs.addEventListener('message', (event) => {
     let incomingData: SensorData = JSON.parse(event.data);
-    sensorData.value = incomingData;
+    sensorData.setAll(incomingData)
 })
 
 function changeDisplayMode(mode: dataDisplayStyle)  {
@@ -78,19 +58,30 @@ function changeDisplayMode(mode: dataDisplayStyle)  {
 
 <template>
     <div class="sensor">
-        <div>
+        <div class="buttons">
             <button @click="changeDisplayMode('electric-graph')">Electric</button>
-            <button>Motion</button>
-            <button>Temperature</button>
-            <button>Text</button>
+            <button @click="changeDisplayMode('motion-graph')">Motion</button>
+            <button @click="changeDisplayMode('temp-graph')">Temperature</button>
+            <button @click="changeDisplayMode('text-all')">Text</button>
         </div>
-        <Data :data="sensorData" v-if="displayMode == 'text-all'"/>
+        <Data :sensor-data="sensorData" v-if="displayMode == 'text-all'"/>
+        <ElectricGraph v-if="displayMode == 'electric-graph'" />
+        <MotionGraph v-if="displayMode == 'motion-graph'" />
+        <TempGraph v-if="displayMode == 'temp-graph'"/>
     </div>
 </template>
 
-<style>
+<style scoped>
     .sensor {
+        display: flex;
+        justify-content: center;
         width: 100%;
         height: 100%;
+        position: relative;
+    }
+
+    .buttons {
+        position: absolute;
+        top: -1rem;
     }
 </style>
