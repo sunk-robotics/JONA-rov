@@ -1,5 +1,6 @@
 from adafruit_servokit import ServoKit
 import math
+from orientation import cartesian_to_spherical
 import time
 
 
@@ -24,7 +25,7 @@ class Motors:
             7: 11,
         }
         self.motor_velocities = [0, 0, 0, 0, 0, 0, 0, 0]
-        self.speed_limit = 0.5
+        self.speed_limit = 1
         # set the correct pulse range (1100 microseconds to 1900 microseconds)
         for motor_num in range(self.num_motors):
             self.kit.servo[self.motor_channel_table[motor_num]].set_pulse_width_range(
@@ -205,17 +206,25 @@ class Motors:
         return (a_scalar, -b_scalar, z_scalar)
 
     # moves the ROV according to a vector specified in spherical form (r, θ, ϕ)
-    def drive_vector(self, r, theta, phi):
-        # reset all the motor velocities to 0
-        for i in range(len(self.motor_velocities)):
-            self.motor_velocities[i] = 0
+    def drive_vector(self, translation_vector: tuple, rotation_vector: tuple):
+        r, theta, phi = cartesian_to_spherical(translation_vector)
+        if r > 1:
+            r = 1
+        elif r < -1:
+            r = -1
+
+        yaw, roll, pitch = rotation_vector
         max_speed_coords = self.find_max_speed(phi, theta)
         a, b, z = self.find_motor_scalars(
-            max_speed_coords[0] / 2,
-            max_speed_coords[1] / 2,
-            max_speed_coords[2] / 4,
+            max_speed_coords[0] * r / 2,
+            max_speed_coords[1] * r / 2,
+            max_speed_coords[2] * r / 4,
         )
         self.motor_velocities = [b, a, -a, -b, z, z, z, z]
+
+        self.calc_yaw_velocity(yaw)
+        self.calc_roll_velocity(roll)
+        self.calc_pitch_velocity(pitch)
 
         for motor_num, velocity in enumerate(self.motor_velocities):
             self.drive_motor(motor_num, velocity)
