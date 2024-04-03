@@ -14,6 +14,7 @@
 
 <style>
     main {
+        background-color: rgb(37, 37, 37);
         width: 100vw;
         height: 100vh;
         display: grid;
@@ -25,4 +26,5 @@
         gap: 1rem;
         box-sizing: border-box;
     }
+
 </style>

@@ -72,9 +72,11 @@ function changeDisplayMode(mode: dataDisplayStyle)  {
 
 <style scoped>
     .sensor {
+        background-color: white;
+        padding: 1rem;
         display: flex;
         justify-content: center;
-        width: 100%;
+        width: 45vw;
         height: 100%;
         position: relative;
     }
@@ -86,6 +88,13 @@ function changeDisplayMode(mode: dataDisplayStyle)  {
     }
 
     button {
-        width: 20%;
+        background-color: rgb(63, 63, 63);
+        color: white;
+        width: 25%;
+        height: 2rem;
+        border: none;
+    }
+    button:hover {
+        background-color: rgb(94, 94, 94);
     }
 </style>

@@ -49,6 +49,7 @@
         margin-left: 0.5em;
         margin-right: 0.5em;
         width: 45vw;
+        border-radius: 1rem;
     }
 
     canvas:hover {

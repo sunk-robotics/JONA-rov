@@ -62,7 +62,7 @@ ul {
     display: grid;
     grid-template-rows: repeat(5, 1fr);
     grid-auto-flow: column;
-    font-size: small;
+    font-size: medium;
 }
 
 li {
