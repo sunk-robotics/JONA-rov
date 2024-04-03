@@ -170,7 +170,12 @@ async def main_server():
             and abs(z_velocity) < DESTABLE_THRESH
             and abs(prev_z_velocity) > DESTABLE_THRESH
         ):
-            depth_pid.update_set_point(depth_sensor.depth())
+            depth_pid.update_set_point(depth)
+
+        prev_z_velocity = z_velocity
+        prev_yaw_velocity = yaw_velocity
+        prev_roll_velocity = roll_velocity
+        prev_pitch_velocity = pitch_velocity
 
         # set the z velocity according to the depth PID controller based on
         # current depth, the depth anchor should be temporarily disabled
@@ -297,11 +302,6 @@ async def main_server():
         prev_roll_anchor_toggle = roll_anchor_toggle
         prev_pitch_anchor_toggle = pitch_anchor_toggle
         prev_motor_lock_toggle = motor_lock_toggle
-
-        prev_z_velocity = z_velocity
-        prev_yaw_velocity = yaw_velocity
-        prev_roll_velocity = roll_velocity
-        prev_pitch_velocity = pitch_velocity
 
         await asyncio.sleep(0.01)
 

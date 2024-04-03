@@ -58,7 +58,9 @@ async def main_server():
     pitch_anchor = False
     # adjust the pitch velocity to keep the ROV stable
     # TODO - Need to tune the PID parameters
-    pitch_pid = RotationalPID(proportional_gain=0.03, integral_gain=0, derivative_gain=0)
+    pitch_pid = RotationalPID(
+        proportional_gain=0.03, integral_gain=0, derivative_gain=0
+    )
 
     # multiplier for velocity to set speed limit
     speed_multiplier = 1
@@ -140,7 +142,7 @@ async def main_server():
         if joystick_data:
             x_velocity = joystick_data["right_stick"][0] * speed_multiplier
             y_velocity = joystick_data["left_stick"][1] * speed_multiplier
-            z_velocity = -joystick_data["right_stick"][1] * speed_multiplier
+            z_velocity = joystick_data["right_stick"][1] * speed_multiplier
             yaw_velocity = joystick_data["left_stick"][0] * speed_multiplier
             pitch_velocity = joystick_data["dpad"][1] * speed_multiplier
             roll_velocity = joystick_data["dpad"][0] * speed_multiplier
@@ -232,6 +234,8 @@ async def main_server():
         #      pitch_velocity,
         #      roll_velocity,
         #  )
+        print(f"Translation Vector: {translation_vector}")
+        print(f"Rotation Vector: {rotation_vector}")
         motors.drive_vector(translation_vector, rotation_vector)
 
         # increase or decrease speed when the dpad buttons are pressed
