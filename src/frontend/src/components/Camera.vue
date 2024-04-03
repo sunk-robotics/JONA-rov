@@ -26,16 +26,18 @@
         });
 
         let frame = decoder.decode().then((res: any) => {
-            imageStore.set(res.image)
-            ctx.drawImage(res.image, 0, 0, 640, 480)
+            const image = res.image;
+            imageStore.set(image)
+            ctx.drawImage(image, 0, 0, image.codedWidth, image.codedHeight, 0, 0, 1920, 1080)
         })
+
     })
 
 </script>
 
 <template>
     <router-link to="/measure">
-        <canvas ref="canvas" width=640 height=480></canvas>
+        <canvas ref="canvas" width=1920 height=1080></canvas>
     </router-link>
 </template>
 
