@@ -145,7 +145,7 @@ class Motors:
         z_coord = 0
 
         z_rotate = math.radians(z_rotate)
-        x_rotate = math.radians(x_rotate)
+        x_rotate = math.radians( (x_rotate + 90) % 360 )
 
         # find max x and y speed on horizontal plane
         if math.degrees(z_rotate) < 90:

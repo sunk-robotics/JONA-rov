@@ -82,5 +82,10 @@ function changeDisplayMode(mode: dataDisplayStyle)  {
     .buttons {
         position: absolute;
         top: -1rem;
+        width:100%;
+    }
+
+    button {
+        width: 20%;
     }
 </style>
