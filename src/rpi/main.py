@@ -170,7 +170,7 @@ async def main_server():
             and abs(z_velocity) < DESTABLE_THRESH
             and abs(prev_z_velocity) > DESTABLE_THRESH
         ):
-            depth_pid.update_set_point(depth_sensor.depth())
+            depth_pid.update_set_point(depth)
 
         prev_z_velocity = z_velocity
         prev_yaw_velocity = yaw_velocity
