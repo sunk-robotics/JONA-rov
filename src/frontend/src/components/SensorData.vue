@@ -7,7 +7,7 @@ import TempGraph from './graphs/TempGraph.vue';
 import { useSensorDataStore } from '@/stores/sensorData';
 
 const sensorData = useSensorDataStore()
-let url = "ws://192.168.0.102:8765";
+let url = "ws://192.168.0.106:8765";
 
 let mainWs = new WebSocket(url)
 const wsInfo = { 'client_type': 'web_client_main' }
@@ -82,10 +82,5 @@ function changeDisplayMode(mode: dataDisplayStyle)  {
     .buttons {
         position: absolute;
         top: -1rem;
-        width:100%;
-    }
-
-    button {
-        width: 20%;
     }
 </style>
