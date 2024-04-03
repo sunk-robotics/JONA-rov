@@ -4,3 +4,4 @@ src/model-viewer/node_modules/
 src/rpi/build/
 src/rpi/main.spec
 src/rpi/dist/
+src/rpi/__pycache__/

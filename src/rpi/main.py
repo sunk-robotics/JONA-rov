@@ -1,254 +1,321 @@
-from adafruit_servokit import ServoKit
-import math
-from orientation import cartesian_to_spherical
-import time
+#!/bin/python
+import adafruit_bno055
+import asyncio
+import board
+from motors import Motors
+from ms5837 import MS5837_02BA
+import json
+import websockets
+from ws_server import WSServer
+from pid import PID, RotationalPID
+from power_monitoring import PowerMonitor
+
+# how far the joystick needs to be moved before stabilization is temporarily
+# disabled (0..1)
+DESTABLE_THRESH = 0.5
 
 
-class Motors:
-    def __init__(self):
-        # After calibrating with the oscilloscope, the correct reference clock
-        # speed for the particular PCA9685 should be 24.5 MHz, rather than the
-        # standard 25 MHz. If the motors don't work for some reason, check the
-        # reference clock.
-        self.kit = ServoKit(channels=16, reference_clock_speed=24_500_000)
-        self.num_motors = 8
-        # a table that maps the motor number to the correct channel on the PWM
-        # controller
-        self.motor_channel_table = {
-            0: 12,
-            1: 13,
-            2: 8,
-            3: 10,
-            4: 9,
-            5: 14,
-            6: 15,
-            7: 11,
-        }
-        self.motor_velocities = [0, 0, 0, 0, 0, 0, 0, 0]
-        self.speed_limit = 1
-        # set the correct pulse range (1100 microseconds to 1900 microseconds)
-        for motor_num in range(self.num_motors):
-            self.kit.servo[self.motor_channel_table[motor_num]].set_pulse_width_range(
-                1100, 1900
+async def main_server():
+    motors = Motors()
+
+    try:
+        depth_sensor = MS5837_02BA(1)
+        depth_sensor.init()
+    except OSError:
+        print("Unable to connect to depth sensor!")
+        depth_sensor = None
+
+    try:
+        imu = adafruit_bno055.BNO055_I2C(board.I2C())
+    except OSError:
+        print("Unable to connect IMU!")
+        imu = None
+
+    try:
+        power_monitor = PowerMonitor()
+    except OSError:
+        print("Unable to connect to power monitor!")
+        power_monitor = None
+
+    depth_anchor = False
+    # adjust the y-velocity to have the ROV remain at a constant depth
+    # TODO - Likely need to re-tune the PID parameters
+    depth_pid = PID(proportional_gain=2, integral_gain=0.05, derivative_gain=0.01)
+
+    yaw_anchor = False
+    # adjust the yaw velocity to keep the ROV stable
+    # TODO - Need to tune the PID parameters
+    yaw_pid = RotationalPID(proportional_gain=0, integral_gain=0, derivative_gain=0)
+
+    roll_anchor = False
+    # adjust the roll velocity to keep the ROV stable
+    roll_pid = PID(
+        proportional_gain=-0.03, integral_gain=-0.001, derivative_gain=0.0e-4
+    )
+
+    pitch_anchor = False
+    # adjust the pitch velocity to keep the ROV stable
+    # TODO - Need to tune the PID parameters
+    pitch_pid = PID(proportional_gain=0.03, integral_gain=0, derivative_gain=0)
+
+    # multiplier for velocity to set speed limit
+    speed_multiplier = 1
+
+    # lock the controls in a certain state to allow for "autonomous" docking
+    motor_lock = False
+
+    locked_velocities = {
+        "x_velocity": 0,
+        "y_velocity": 0,
+        "z_velocity": 0,
+        "yaw_velocity": 0,
+        "pitch_velocity": 0,
+        "roll_velocity": 0,
+    }
+
+    # stores the last button press of the velocity toggle button
+    prev_speed_toggle = None
+    prev_depth_anchor_toggle = None
+    prev_roll_anchor_toggle = None
+    prev_pitch_anchor_toggle = None
+    prev_yaw_anchor_toggle = None
+    prev_motor_lock_toggle = None
+
+    prev_z_velocity = 0
+    prev_yaw_velocity = 0
+    prev_roll_velocity = 0
+    prev_pitch_velocity = 0
+
+    print("Server started!")
+    while True:
+        joystick_data = WSServer.pump_joystick_data()
+        if depth_sensor is not None:
+            depth_sensor.read()
+
+        # read sensor information
+        internal_temp = imu.temperature if imu is not None else None
+        external_temp = depth_sensor.temperature() if depth_sensor is not None else None
+        depth = depth_sensor.depth() if depth_sensor is not None else None
+        yaw = imu.euler[0] if imu is not None else None
+        roll = imu.euler[1] if imu is not None else None
+        pitch = imu.euler[2] if imu is not None else None
+        x_accel = imu.linear_acceleration[0]
+        y_accel = imu.linear_acceleration[1]
+        z_accel = imu.linear_acceleration[2]
+        voltage_5V = power_monitor.voltage_5V() if power_monitor is not None else None
+        current_5V = power_monitor.current_5V() if power_monitor is not None else None
+        voltage_12V = power_monitor.voltage_12V() if power_monitor is not None else None
+        current_12V = power_monitor.current_12V() if power_monitor is not None else None
+
+        # send data to web client
+        if WSServer.web_client_main is not None:
+            status_info = {
+                "internal_temp": internal_temp,
+                "external_temp": external_temp,
+                "depth": depth,
+                "yaw": yaw,
+                "roll": roll,
+                "pitch": pitch,
+                "x_accel": x_accel,
+                "y_accel": y_accel,
+                "z_accel": z_accel,
+                "voltage_5V": voltage_5V,
+                "current_5V": current_5V,
+                "voltage_12V": voltage_12V,
+                "current_12V": current_12V,
+                "speed_multiplier": speed_multiplier,
+                "depth_anchor_enabled": depth_anchor,
+                "yaw_anchor_enabled": yaw_anchor,
+                "roll_anchor_enabled": roll_anchor,
+                "pitch_anchor_enabled": pitch_anchor,
+                "motor_lock_enabled": motor_lock,
+            }
+            await WSServer.web_client_main.send(json.dumps(status_info))
+
+        # set all the velocities to 0 if there's no joystick connected
+        if joystick_data:
+            x_velocity = joystick_data["right_stick"][0] * speed_multiplier
+            y_velocity = joystick_data["left_stick"][1] * speed_multiplier
+            z_velocity = -joystick_data["right_stick"][1] * speed_multiplier
+            yaw_velocity = joystick_data["left_stick"][0] * speed_multiplier
+            pitch_velocity = joystick_data["dpad"][1] * speed_multiplier
+            roll_velocity = joystick_data["dpad"][0] * speed_multiplier
+            speed_toggle = (
+                joystick_data["buttons"]["right_bumper"]
+                - joystick_data["buttons"]["left_bumper"]
             )
-        self.stop_all()
-        # each motors needs to receive a neutral signal for at least two
-        # seconds, otherwise they won't work
-        time.sleep(2)
-
-    def drive_motor(self, motor_num: int, velocity: float):
-        # maps the velocity from -1..1 where -1 is full throttle reverse and
-        # 1 is full throttle forward to an angle where 0 degrees is full
-        # throttle reverse and 180 degrees is full throttle forward
-        angle = int(velocity * 90) + 90
-        self.kit.servo[self.motor_channel_table[motor_num]].angle = angle
-
-    # move the ROV left or right
-    def calc_x_velocity(self, velocity: float):
-        # positive velocity - ROV moves right
-        # negative velocity - ROV moves left
-        self.motor_velocities[0] -= velocity
-        self.motor_velocities[1] += velocity
-        self.motor_velocities[2] += velocity
-        self.motor_velocities[3] -= velocity
-
-    # move the ROV forward or backward
-    def calc_y_velocity(self, velocity: float):
-        # positive velocity - ROV moves forward
-        # negative velocity - ROV moves backward
-        self.motor_velocities[0] -= velocity
-        self.motor_velocities[1] -= velocity
-        self.motor_velocities[2] += velocity
-        self.motor_velocities[3] += velocity
-
-    # move the ROV up or down
-    def calc_z_velocity(self, velocity: float):
-        # positive velocity - ROV moves up
-        # negative velocity - ROV moves down
-        self.motor_velocities[4] += velocity
-        self.motor_velocities[5] += velocity
-        self.motor_velocities[6] += velocity
-        self.motor_velocities[7] += velocity
-
-    # turn the ROV left or right
-    def calc_yaw_velocity(self, velocity: float):
-        # positive velocity - ROV turns right
-        # negative velocity - ROV turns left
-        self.motor_velocities[0] -= velocity
-        self.motor_velocities[1] += velocity
-        self.motor_velocities[2] -= velocity
-        self.motor_velocities[3] += velocity
-
-    # make the ROV pitch upward or downward
-    def calc_pitch_velocity(self, velocity: float):
-        # positive velocity - ROV pitches up
-        # negative velocity - ROV pitches down
-        self.motor_velocities[4] += velocity
-        self.motor_velocities[5] += velocity
-        self.motor_velocities[6] -= velocity
-        self.motor_velocities[7] -= velocity
-
-    # make the ROV do a barrel roll
-    def calc_roll_velocity(self, velocity: float):
-        # positive velocity - ROV rolls to the right, maybe
-        # negative velocity - ROV rolls to the left, maybe
-        self.motor_velocities[4] -= velocity
-        self.motor_velocities[5] += velocity
-        self.motor_velocities[6] -= velocity
-        self.motor_velocities[7] += velocity
-
-    def stop_all(self):
-        for motor_num in range(len(self.motor_velocities)):
-            self.drive_motor(motor_num, 0)
-
-    def drive_motors(
-        self,
-        x_velocity=0,
-        y_velocity=0,
-        z_velocity=0,
-        yaw_velocity=0,
-        pitch_velocity=0,
-        roll_velocity=0,
-    ):
-        # reset all the velocities to 0
-        for i in range(len(self.motor_velocities)):
-            self.motor_velocities[i] = 0
-
-        self.calc_x_velocity(x_velocity)
-        self.calc_y_velocity(y_velocity)
-        self.calc_z_velocity(z_velocity)
-        self.calc_yaw_velocity(yaw_velocity)
-        self.calc_pitch_velocity(pitch_velocity)
-        self.calc_roll_velocity(roll_velocity)
-
-        for motor_num in range(len(self.motor_velocities)):
-            if self.motor_velocities[motor_num] > self.speed_limit:
-                self.motor_velocities[motor_num] = self.speed_limit
-            elif self.motor_velocities[motor_num] < -self.speed_limit:
-                self.motor_velocities[motor_num] = -self.speed_limit
-
-        for motor_num, velocity in enumerate(self.motor_velocities):
-            self.drive_motor(motor_num, velocity)
-
-    def test_motors(self):
-        for motor_num in range(self.num_motors):
-            self.drive_motor(motor_num, 0.3)
-            print(f"Testing motor: {motor_num}")
-            time.sleep(2)
-            self.drive_motor(motor_num, 0)
-        self.stop_all()
-
-    def find_max_speed(self, z_rotate, x_rotate) -> (float, float, float):
-        SLOPE = math.sqrt(3)
-        x_coord = 0
-        y_coord = 0
-        z_coord = 0
-
-        z_rotate = math.radians(z_rotate % 360)
-        x_rotate = math.radians( (x_rotate + 90) % 360 )
-
-        # find max x and y speed on horizontal plane
-        if math.degrees(z_rotate) < 90:
-            x_coord = (SLOPE * 2) / (math.tan(z_rotate) + SLOPE)
-            y_coord = -SLOPE * (x_coord) + (SLOPE * 2)
-
-        elif math.degrees(z_rotate) < 180:
-            x_coord = (SLOPE * 2) / (math.tan(z_rotate) - SLOPE)
-            y_coord = SLOPE * (x_coord) + (SLOPE * 2)
-
-        elif math.degrees(z_rotate) < 270:
-            x_coord = -(SLOPE * 2) / (math.tan(z_rotate) + SLOPE)
-            y_coord = -SLOPE * (x_coord) - (SLOPE * 2)
-
-        elif math.degrees(z_rotate) < 360:
-            x_coord = -(SLOPE * 2) / (math.tan(z_rotate) - SLOPE)
-            y_coord = SLOPE * (x_coord) - (SLOPE * 2)
-
-        xy_dist = math.sqrt(y_coord**2 + x_coord**2)
-
-        # max angle before hitting ceiling
-        max_x_rotate = math.atan((4 / xy_dist))
-
-        # check if x_rotate hits ceiling
-        if (
-            x_rotate < max_x_rotate
-            or (
-                x_rotate > math.radians(180) - max_x_rotate
-                and x_rotate < math.radians(180) + max_x_rotate
-            )
-            or x_rotate > math.radians(270) + max_x_rotate
-        ):
-            # if it doesn't, find z_coord according to x_rotate and xy_dist
-            z_coord = xy_dist * math.sin(x_rotate)
-
+            depth_anchor_toggle = joystick_data["buttons"]["north"]
+            roll_anchor_toggle = joystick_data["buttons"]["east"]
+            pitch_anchor_toggle = joystick_data["buttons"]["south"]
+            yaw_anchor_toggle = joystick_data["buttons"]["west"]
+            motor_lock_toggle = joystick_data["buttons"]["start"]
         else:
-            # check for if we are going relatively down or up
-            if x_rotate > math.radians(180):
-                z_coord = -4
+            x_velocity = 0
+            y_velocity = 0
+            z_velocity = 0
+            yaw_velocity = 0
+            pitch_velocity = 0
+            roll_velocity = 0
+            speed_toggle = 0
+            yaw_anchor_toggle = 0
+            roll_anchor_toggle = 0
+            depth_anchor_toggle = 0
+            pitch_anchor_toggle = 0
+            motor_lock_toggle = 0
+
+        # re-enable the depth anchor when the z velocity falls below the
+        # threshold
+        if (
+            depth_anchor
+            and abs(z_velocity) < DESTABLE_THRESH
+            and abs(prev_z_velocity) > DESTABLE_THRESH
+        ):
+            depth_pid.update_set_point(depth_sensor.depth())
+
+        prev_z_velocity = z_velocity
+        prev_yaw_velocity = yaw_velocity
+        prev_roll_velocity = roll_velocity
+        prev_pitch_velocity = pitch_velocity
+
+        # set the z velocity according to the depth PID controller based on
+        # current depth, the depth anchor should be temporarily disabled
+        # when the z velocity is greater than a certain threshold in order to
+        # give the pilot control over the depth when the depth anchor is on
+        if depth_anchor and depth is not None and abs(z_velocity) < DESTABLE_THRESH:
+            z_velocity = depth_pid.compute(depth)
+
+        # set the yaw velocity according to the yaw PID controller based on
+        # current yaw angle
+        if yaw_anchor and yaw is not None and abs(yaw_velocity) < DESTABLE_THRESH:
+            yaw_velocity = yaw_pid.compute(yaw)
+
+        # set the roll velocity according to the roll PID controller based on
+        # current roll angle
+        if roll_anchor and roll is not None and abs(roll_velocity) < DESTABLE_THRESH:
+            print(f"Roll Angle: {roll}°")
+            print(f"Error: {roll_pid.set_point - roll}")
+            roll_velocity = roll_pid.compute(roll)
+            print(roll_velocity)
+
+        # set the pitch velocity according to the pitch PID controller based on
+        # current pitch angle
+        if pitch_anchor and pitch is not None and abs(pitch_velocity) < DESTABLE_THRESH:
+            #  print(f"Pitch Angle: {pitch}°")
+            #  print(f"Error: {pitch_pid.set_point - pitch}")
+            pitch_velocity = pitch_pid.compute(pitch)
+
+        if motor_lock:
+            x_velocity = locked_velocities["x_velocity"]
+            y_velocity = locked_velocities["y_velocity"]
+            z_velocity = locked_velocities["z_velocity"]
+            yaw_velocity = locked_velocities["yaw_velocity"]
+            pitch_velocity = locked_velocities["pitch_velocity"]
+            roll_velocity = locked_velocities["roll_velocity"]
+
+        # run the motors!
+        motors.drive_motors(
+            x_velocity,
+            y_velocity,
+            z_velocity,
+            yaw_velocity,
+            pitch_velocity,
+            roll_velocity,
+        )
+
+        # increase or decrease speed when the dpad buttons are pressed
+        if speed_toggle != prev_speed_toggle:
+            # make sure the speed doesn't exceed 1
+            if speed_toggle > 0 and speed_multiplier < 1:
+                speed_multiplier += 0.25
+            # make sure the speed doesn't fall below 0.25
+            if speed_toggle < 0 and speed_multiplier >= 0.25:
+                speed_multiplier -= 0.25
+
+            # just in case the speed multiplier ends up out of range
+            if speed_multiplier > 1:
+                speed_multiplier = 1
+            elif speed_multiplier < 0:
+                speed_multiplier = 0
+            print(f"Speed Multiplier: {speed_multiplier}")
+            prev_speed_toggle = speed_toggle
+
+        # toggle the depth anchor
+        if (
+            depth_sensor is not None
+            and depth_anchor_toggle
+            and not prev_depth_anchor_toggle
+        ):
+            if depth_anchor:
+                print("Vertical anchor disabled!")
+                depth_anchor = False
+            elif depth_sensor is not None:
+                depth_anchor = True
+                depth_pid.update_set_point(depth_sensor.depth())
+                print(f"Vertical anchor enabled at: {depth_pid.set_point} m")
+
+        # toggle the yaw anchor
+        if imu is not None and yaw_anchor_toggle and not prev_yaw_anchor_toggle:
+            if yaw_anchor:
+                print("Pitch anchor disabled!")
+                yaw_anchor = False
+            elif depth_sensor is not None:
+                yaw_anchor = True
+                yaw_pid.update_set_point(yaw)
+                print(f"Pitch anchor enabled at: {yaw_pid.set_point}°")
+
+        # toggle the roll anchor
+        if imu is not None and roll_anchor_toggle and not prev_roll_anchor_toggle:
+            if roll_anchor:
+                print("Roll anchor disabled!")
+                roll_anchor = False
+            elif depth_sensor is not None:
+                roll_anchor = True
+                roll_pid.update_set_point(roll)
+                print(f"Roll anchor enabled at: {roll_pid.set_point}°")
+
+        # toggle the pitch anchor
+        if imu is not None and pitch_anchor_toggle and not prev_pitch_anchor_toggle:
+            if pitch_anchor:
+                print("Pitch anchor disabled!")
+                pitch_anchor = False
+            elif depth_sensor is not None:
+                pitch_anchor = True
+                pitch_pid.update_set_point(pitch)
+                print(f"Pitch anchor enabled at: {pitch_pid.set_point}°")
+
+        # toggle the motor lock
+        if motor_lock_toggle and not prev_motor_lock_toggle:
+            if motor_lock:
+                motor_lock = False
+                print("Motor lock disabled!")
             else:
-                z_coord = 4
+                motor_lock = True
+                locked_velocities["x_velocity"] = x_velocity
+                locked_velocities["y_velocity"] = y_velocity
+                locked_velocities["z_velocity"] = z_velocity
+                locked_velocities["yaw_velocity"] = yaw_velocity
+                locked_velocities["pitch_velocity"] = pitch_velocity
+                locked_velocities["roll_velocity"] = roll_velocity
+                print("Motor lock enabled!")
 
-            # scale x and y coords accordingly
-            new_xy_dist = 4 / math.tan(x_rotate)
-            x_coord *= new_xy_dist / xy_dist
-            y_coord *= new_xy_dist / xy_dist
+        prev_depth_anchor_toggle = depth_anchor_toggle
+        prev_roll_anchor_toggle = roll_anchor_toggle
+        prev_pitch_anchor_toggle = pitch_anchor_toggle
+        prev_motor_lock_toggle = motor_lock_toggle
 
-        return (x_coord, y_coord, z_coord)
-
-    def find_motor_scalars(self, x_coord, y_coord, z_coord) -> (float, float, float):
-        z_scalar = z_coord
-        a_scalar = x_coord / (2 * math.cos(math.pi / 3)) + y_coord / (
-            2 * math.sin(math.pi / 3)
-        )
-        b_scalar = x_coord / (2 * math.cos(math.pi / 3)) - y_coord / (
-            2 * math.sin(math.pi / 3)
-        )
-        return (a_scalar, -b_scalar, z_scalar)
-
-    # moves the ROV according to a vector specified in spherical form (r, θ, ϕ)
-    def drive_vector(self, translation_vector: tuple, rotation_vector: tuple):
-        r, theta, phi = cartesian_to_spherical(translation_vector)
-        if r > 1:
-            r = 1
-        elif r < -1:
-            r = -1
-
-        yaw, roll, pitch = rotation_vector
-        max_speed_coords = self.find_max_speed(phi, theta)
-        a, b, z = self.find_motor_scalars(
-            max_speed_coords[0] * r / 2,
-            max_speed_coords[1] * r / 2,
-            max_speed_coords[2] * r / 4,
-        )
-        self.motor_velocities = [b, a, -a, -b, z, z, z, z]
-
-        self.calc_yaw_velocity(yaw)
-        self.calc_roll_velocity(roll)
-        self.calc_pitch_velocity(pitch)
-
-        # make sure the motors don't exceed the speed limit
-        for motor_num in range(len(self.motor_velocities)):
-            if self.motor_velocities[motor_num] > self.speed_limit:
-                self.motor_velocities[motor_num] = self.speed_limit
-            elif self.motor_velocities[motor_num] < -self.speed_limit:
-                self.motor_velocities[motor_num] = -self.speed_limit
-
-
-        for motor_num, velocity in enumerate(self.motor_velocities):
-            self.drive_motor(motor_num, velocity)
+        await asyncio.sleep(0.01)
 
 
 def main():
-    motors = Motors()
-    motors.drive_motor(0, 1)
-    #  motors.test_motors()
-    #  motors.drive_motor(7, 0.15)
-    time.sleep(3)
-    motors.stop_all()
-    #  motors.drive_motors(z_velocity=0.5)
-    #  time.sleep(2)
-    #  motors.drive_motors()
+    loop = asyncio.get_event_loop()
+    ws_server = websockets.serve(WSServer.handler, "0.0.0.0", 8765, ping_interval=None)
+    asyncio.ensure_future(ws_server)
+    asyncio.ensure_future(main_server())
+    loop.run_forever()
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        print("")
