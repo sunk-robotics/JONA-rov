@@ -6,17 +6,6 @@ import MotionGraph from './graphs/MotionGraph.vue';
 import TempGraph from './graphs/TempGraph.vue';
 import { useSensorDataStore } from '@/stores/sensorData';
 
-const sensorData = useSensorDataStore()
-let url = "ws://192.168.0.106:8765";
-
-let mainWs = new WebSocket(url)
-const wsInfo = { 'client_type': 'web_client_main' }
-
-mainWs.addEventListener('open', (event) => {
-    mainWs.send(JSON.stringify(wsInfo));
-})
-
-
 type dataDisplayStyle = "electric-graph" | "motion-graph" | "text-all" | "temp-graph"
 let displayMode: Ref<dataDisplayStyle> = ref("text-all") 
 
@@ -43,10 +32,36 @@ type SensorData = {
     motor_lock_enabled: boolean | null
 }
 
-mainWs.addEventListener('message', (event) => {
+const sensorData = useSensorDataStore()
+
+let ws: WebSocket;
+const url = "ws://192.168.1.1:8765";
+ws = new WebSocket(url);
+const wsInfo = { 'client_type': 'web_client_main' }
+
+ws.addEventListener('open', (event) => {
+    ws.send(JSON.stringify(wsInfo));
+})
+
+ws.addEventListener('message', (event) => {
     let incomingData: SensorData = JSON.parse(event.data);
     sensorData.setAll(incomingData)
 })
+
+
+setInterval(() => {
+    if (ws != null && ws.readyState == 3) {
+        ws = new WebSocket(url);
+        ws.addEventListener("open", (event) => {
+            ws.send(JSON.stringify(wsInfo));
+        })
+        ws.addEventListener('message', (event) => {
+            let incomingData: SensorData = JSON.parse(event.data);
+            sensorData.setAll(incomingData)
+        })
+    }
+}, 500);
+
 
 function changeDisplayMode(mode: dataDisplayStyle)  {
     displayMode.value = mode

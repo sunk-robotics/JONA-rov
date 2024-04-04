@@ -7,9 +7,9 @@
 <template>
     <Navbar></Navbar>
     <main>
-        <Camera cam-url="ws://192.168.0.106:3000"/>
-        <Camera cam-url="ws://192.168.0.102:3001"/>
-        <Camera cam-url="ws://192.168.0.101:3002"/>
+        <Camera url="ws://192.168.1.1:3000"/>
+        <Camera url="ws://192.168.1.3:3001"/>
+        <Camera url="ws://192.168.1.6:3002"/>
         <SensorData />
     </main>
 </template>

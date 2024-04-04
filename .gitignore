@@ -1,5 +1,6 @@
 src/coral-modeling/.venv/
 src/.venv/
+src/frontend/package-lock.json
 src/model-viewer/node_modules/
 src/rpi/build/
 src/rpi/main.spec
