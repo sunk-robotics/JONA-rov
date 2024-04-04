@@ -35,7 +35,7 @@ type SensorData = {
 const sensorData = useSensorDataStore()
 
 let ws: WebSocket;
-const url = "ws://192.168.0.106:8765";
+const url = "ws://192.168.1.1:8765";
 ws = new WebSocket(url);
 console.log(ws);
 const wsInfo = { 'client_type': 'web_client_main' }
