@@ -37,7 +37,6 @@ const sensorData = useSensorDataStore()
 let ws: WebSocket;
 const url = "ws://192.168.1.1:8765";
 ws = new WebSocket(url);
-console.log(ws);
 const wsInfo = { 'client_type': 'web_client_main' }
 
 ws.addEventListener('open', (event) => {
@@ -52,7 +51,6 @@ ws.addEventListener('message', (event) => {
 
 setInterval(() => {
     if (ws != null && ws.readyState == 3) {
-        console.log(ws);
         ws = new WebSocket(url);
         ws.addEventListener("open", (event) => {
             ws.send(JSON.stringify(wsInfo));
