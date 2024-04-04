@@ -7,12 +7,12 @@ import TempGraph from './graphs/TempGraph.vue';
 import { useSensorDataStore } from '@/stores/sensorData';
 
 type dataDisplayStyle = "electric-graph" | "motion-graph" | "text-all" | "temp-graph"
-let displayMode: Ref<dataDisplayStyle> = ref("text-all") 
+let displayMode: Ref<dataDisplayStyle> = ref("text-all")
 
 type SensorData = {
     internal_temp: number | null,
     external_temp: number | null,
-    temp: number | null, 
+    temp: number | null,
     depth: number | null,
     yaw: number | null,
     roll: number | null,
@@ -23,7 +23,7 @@ type SensorData = {
     current_12V: number | null,
     x_accel: number | null,
     y_accel: number | null,
-    z_accel: number| null,
+    z_accel: number | null,
     speed_multiplier: number | null,
     depth_anchor_enabled: boolean | null,
     yaw_anchor_enabled: boolean | null,
@@ -63,55 +63,63 @@ setInterval(() => {
 }, 500);
 
 
-function changeDisplayMode(mode: dataDisplayStyle)  {
+function changeDisplayMode(mode: dataDisplayStyle) {
     displayMode.value = mode
     console.log(mode);
-    
+
 }
 </script>
 
 <template>
     <div class="sensor">
         <div class="buttons">
-            <button @click="changeDisplayMode('electric-graph')">Electric</button>
-            <button @click="changeDisplayMode('motion-graph')">Motion</button>
+            <button @click="changeDisplayMode('text-all')" class="left-button">Text</button>
             <button @click="changeDisplayMode('temp-graph')">Temperature</button>
-            <button @click="changeDisplayMode('text-all')">Text</button>
+            <button @click="changeDisplayMode('electric-graph')"> Electric</button>
+            <button @click="changeDisplayMode('motion-graph')" class="right-button">Motion</button>
         </div>
-        <Data :sensor-data="sensorData" v-if="displayMode == 'text-all'"/>
+        <Data :sensor-data="sensorData" v-if="displayMode == 'text-all'" />
         <ElectricGraph v-if="displayMode == 'electric-graph'" />
         <MotionGraph v-if="displayMode == 'motion-graph'" />
-        <TempGraph v-if="displayMode == 'temp-graph'"/>
+        <TempGraph v-if="displayMode == 'temp-graph'" />
     </div>
 </template>
 
 <style scoped>
-    .sensor {
-        background-color: white;
-        display: flex;
-        padding: 1rem;
-        justify-content: center;
-        width: 85%;
-        height: fit-content;
-        position: relative;
-        border-bottom-left-radius: 1rem;
-        border-bottom-right-radius: 1rem;
-    }
+.sensor {
+    background-color: white;
+    display: flex;
+    padding: 1rem;
+    justify-content: center;
+    width: 85%;
+    height: fit-content;
+    position: relative;
+    border-radius: 1rem;
+}
 
-    .buttons {
-        position: absolute;
-        top: -1rem;
-        width:100%;
-    }
+.buttons {
+    position: absolute;
+    top: -0.5rem;
+    width: 100%;
+}
 
-    button {
-        background-color: rgb(63, 63, 63);
-        color: white;
-        width: 25%;
-        height: 2rem;
-        border: none;
-    }
-    button:hover {
-        background-color: rgb(94, 94, 94);
-    }
+button {
+    background-color: rgb(63, 63, 63);
+    color: white;
+    width: 25%;
+    height: 2rem;
+    border: none;
+}
+
+button:hover {
+    background-color: rgb(94, 94, 94);
+}
+
+.left-button {
+    border-top-left-radius: 1rem;
+}
+
+.right-button {
+    border-top-right-radius: 1rem;
+}
 </style>
