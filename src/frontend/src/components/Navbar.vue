@@ -18,7 +18,6 @@ mainWs.addEventListener('open', (event) => {
 
 
 type dataDisplayStyle = "electric-graph" | "motion-graph" | "text-all" | "temp-graph"
-let displayMode: Ref<dataDisplayStyle> = ref("text-all") 
 
 type SensorData = {
     internal_temp: number | null,
@@ -48,55 +47,17 @@ mainWs.addEventListener('message', (event) => {
     sensorData.setAll(incomingData)
 })
 
-function changeDisplayMode(mode: dataDisplayStyle)  {
-    displayMode.value = mode
-    console.log(mode);
-    
-}
 </script>
 
 <template>
-    <div class="sensor">
-        <div class="buttons">
-            <button @click="changeDisplayMode('electric-graph')">Electric</button>
-            <button @click="changeDisplayMode('motion-graph')">Motion</button>
-            <button @click="changeDisplayMode('temp-graph')">Temperature</button>
-            <button @click="changeDisplayMode('text-all')">Text</button>
-        </div>
-        <Data :sensor-data="sensorData" v-if="displayMode == 'text-all'"/>
-        <ElectricGraph v-if="displayMode == 'electric-graph'" />
-        <MotionGraph v-if="displayMode == 'motion-graph'" />
-        <TempGraph v-if="displayMode == 'temp-graph'"/>
-    </div>
+    <nav>
+        
+    </nav>
 </template>
 
 <style scoped>
-    .sensor {
-        background-color: white;
-        display: flex;
-        padding: 1rem;
-        justify-content: center;
-        width: 85%;
-        height: fit-content;
-        position: relative;
-        border-bottom-left-radius: 1rem;
-        border-bottom-right-radius: 1rem;
-    }
-
-    .buttons {
-        position: absolute;
-        top: -1rem;
-        width:100%;
-    }
-
-    button {
-        background-color: rgb(63, 63, 63);
-        color: white;
-        width: 25%;
-        height: 2rem;
-        border: none;
-    }
-    button:hover {
-        background-color: rgb(94, 94, 94);
+   nav {
+        height: 3rem;
+        background-color: rgb(22, 22, 22);
     }
 </style>

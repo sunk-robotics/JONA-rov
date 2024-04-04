@@ -40,9 +40,11 @@ const sensorData = useSensorDataStore()
         <li>5V Rail Current: {{ sensorData.get('current_5V') != null ? `${sensorData.get('current_5V').toFixed(2)} A` : "Unknown" }}</li>
         <li>12V Rail Voltage: {{ sensorData.get('voltage_12V') != null ? `${sensorData.get('voltage_12V').toFixed()} V` : "Unknown" }}</li>
         <li>12V Rail Current: {{ sensorData.get('current_12V') != null ? `${sensorData.get('current_12V').toFixed()} A` : "Unknown" }}</li>
+        <!-- Not currently needed
         <li>X Acceleration: {{ sensorData.get('x_accel') != null ? `${sensorData.get('x_accel')!.toFixed(1)}m/s^2` : "Unknown" }}</li>
         <li>Y Acceleration: {{ sensorData.get('y_accel') != null ? `${sensorData.get('y_accel')!.toFixed(1)}m/s^2` : "Unknown"}}</li>
         <li>Z Acceleration: {{ sensorData.get('z_accel') != null ? `${sensorData.get('z_accel')!.toFixed(1)}m/s^2` : "Unknown" }}</li>
+        -->
         <li>Speed Multiplier: {{ sensorData.get('speed_multiplier') != null ? `${sensorData.get('speed_multiplier')}x` : "Unknown" }}</li>
         <li>Depth Anchor: {{ sensorData.get('depth_anchor_enabled') ? "Enabled" : "Disabled" }}</li>
         <li>Yaw Anchor: {{ sensorData.get('yaw_anchor_enabled') ? "Enabled" : "Disabled" }}</li>
@@ -67,5 +69,6 @@ ul {
 
 li {
     text-wrap: nowrap;
+    line-height: 4rem;
 }
 </style>

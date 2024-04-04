@@ -48,7 +48,8 @@
         aspect-ratio: 16/9;
         margin-left: 0.5em;
         margin-right: 0.5em;
-        width: 45vw;
+        padding: 1rem;
+        height: 40vh;
         border-radius: 1rem;
     }
 

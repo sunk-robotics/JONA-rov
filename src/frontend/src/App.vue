@@ -7,12 +7,15 @@
 </script>
 
 <template>
-  <RouterView></RouterView>
+    <RouterView></RouterView>
 </template>
 
 <style>
   body {
     padding: 0;
     margin: 0;
+    max-height: 45vh;
+    height: 45vh;
+    background-color: black;
   }
 </style>
