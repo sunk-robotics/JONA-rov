@@ -3,13 +3,11 @@
     import { RouterLink } from 'vue-router';
     import { useImageStore } from '@/stores/image';
 
-    let imageStore = useImageStore()
-    let decoder;
+    let ws: WebSocket;
 
-    const props = defineProps<{camUrl: string}>();
+    let imageStore = useImageStore();
 
-    let wsFeed = new WebSocket(props.camUrl);
-    wsFeed.binaryType = "arraybuffer";
+    const props = defineProps<{url: string}>();
 
     let ctx: CanvasRenderingContext2D;
 
@@ -17,10 +15,16 @@
     onMounted(() => {
         canvas.value?.focus();
         ctx = canvas.value?.getContext("2d")!;
+    });
+
+    ws = new WebSocket(props.url);
+    ws.binaryType = "arraybuffer";
+    ws.addEventListener("open", (event) => {
+        console.log("Camera connected!");
     })
 
-    wsFeed.addEventListener("message", (event) => {        
-        decoder = new ImageDecoder({
+    ws.addEventListener("message", (event) => {        
+        let decoder = new ImageDecoder({
             type: "image/jpeg",
             data: event.data
         });
@@ -32,6 +36,55 @@
         })
 
     })
+
+    // if the WebSocket isn't connected, keep trying until it connects
+    setInterval(() => {
+        if (ws != null && ws.readyState == 3) {
+            ws = new WebSocket(props.url);
+            ws.binaryType = "arraybuffer";
+            ws.addEventListener("open", (event) => {
+              console.log("Camera connected!");
+            });
+
+            ws.addEventListener("message", (event) => {        
+                let decoder = new ImageDecoder({
+                    type: "image/jpeg",
+                    data: event.data
+                });
+
+                let frame = decoder.decode().then((res: any) => {
+                    const image = res.image;
+                    imageStore.set(image)
+                    ctx.drawImage(image, 0, 0, image.codedWidth, image.codedHeight, 0, 0, 1920, 1080)
+                })
+            })
+
+        }
+    }, 500);
+
+function connectWebsocket(url: string) {
+    if (ws != null && ws.readyState == 3) {
+        ws = new WebSocket(url);
+        ws.binaryType = "arraybuffer";
+        ws.addEventListener("open", (event) => {
+          console.log("Camera connected!");
+        });
+
+        ws.addEventListener("message", (event) => {        
+            decoder = new ImageDecoder({
+                type: "image/jpeg",
+                data: event.data
+            });
+
+            let frame = decoder.decode().then((res: any) => {
+                const image = res.image;
+                imageStore.set(image)
+                ctx.drawImage(image, 0, 0, image.codedWidth, image.codedHeight, 0, 0, 1920, 1080)
+            })
+        })
+
+    }
+}
 
 </script>
 
