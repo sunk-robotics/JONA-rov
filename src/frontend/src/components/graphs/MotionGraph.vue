@@ -5,7 +5,7 @@ import Graph from "../Graph.vue";
 type SensorData = {
     internal_temp: number | null,
     external_temp: number | null,
-    temp: number | null, 
+    temp: number | null,
     depth: number | null,
     yaw: number | null,
     roll: number | null,
@@ -16,7 +16,7 @@ type SensorData = {
     current_12V: number | null,
     x_accel: number | null,
     y_accel: number | null,
-    z_accel: number| null,
+    z_accel: number | null,
     speed_multiplier: number | null,
     depth_anchor_enabled: boolean | null,
     yaw_anchor_enabled: boolean | null,
@@ -28,17 +28,18 @@ type SensorData = {
 
 <template>
     <div>
-        <Graph :field="'x_accel'" :header="'X Acceleration (metres)'" :range="[0, 40]"/>
-        <Graph :field="'y_accel'" :header="'Y Acceleration (metres)'" :range="[0, 40]"/>
-        <Graph :field="'z_accel'" :header="'Z Acceleration (metres)'" :range="[0, 40]"/>
+        <Graph :field="'x_accel'" :header="'X Acceleration (metres)'" :range="[0, 40]" />
+        <Graph :field="'y_accel'" :header="'Y Acceleration (metres)'" :range="[0, 40]" />
+        <Graph :field="'z_accel'" :header="'Z Acceleration (metres)'" :range="[0, 40]" />
     </div>
 </template>
 
 <style scoped>
-    div {
-        width: 100%;
-        height: 100%;
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-    }
+div {
+    width: 100%;
+    height: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    background-color: white;
+}
 </style>
