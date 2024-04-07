@@ -6,3 +6,4 @@ src/rpi/build/
 src/rpi/main.spec
 src/rpi/dist/
 src/rpi/__pycache__/
+src/coral-modeling/result.*
