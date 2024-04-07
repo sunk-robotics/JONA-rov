@@ -86,8 +86,14 @@ function changeDisplayMode(mode: dataDisplayStyle) {
 </template>
 
 <style scoped>
+@font-face {
+    font-family: moonWalk;
+    src: url('public/fonts/moonWalk.otf');
+    font-weight: bold;
+}
+
 .sensor {
-    background-color: rgb(84, 84, 84);
+    background-color: rgb(51, 51, 51);
     display: flex;
     padding: 1rem;
     justify-content: center;
@@ -111,6 +117,7 @@ button {
     width: 25%;
     height: 2rem;
     border: none;
+    font-family: moonWalk;
 }
 
 button:hover {

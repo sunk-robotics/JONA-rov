@@ -51,12 +51,18 @@ type SensorData = {
 </template>
 
 <style scoped>
+@font-face {
+    font-family: moonWalk;
+    src: url('public/fonts/moonWalk.otf');
+}
+
 nav {
     height: 3rem;
     background-color: rgb(22, 22, 22);
     padding: 1rem;
+    font-family: moonWalk;
 }
-
+  
 .indicator {
     display: inline-block;
     justify-content: center;
@@ -67,27 +73,31 @@ nav {
     width: 4rem;
     border-radius: 1rem;
     margin-left: 1rem;
-    box-shadow: 0.5rem 0.5rem 0.2rem rgb(0, 0, 0);
+    box-shadow: 0.3rem 0.3rem 0.2rem rgb(19, 19, 19);
 }
 
 .depth-anchor-on {
     color: rgb(255, 255, 255);
     background-color: rgba(1, 206, 1, 0.544);
+    box-shadow: 0rem 0rem 0.2rem 0.2rem rgba(1, 206, 1, 0.544);
 }
 
 .yaw-anchor-on {
     color: white;
     background-color: rgba(250, 41, 41, 0.733);
+    box-shadow: 0rem 0rem 0.2rem 0.2rem rgba(250, 41, 41, 0.733);
 }
 
 .pitch-anchor-on {
     color: white;
     background-color: rgba(138, 33, 214, 0.653);
+    box-shadow: 0rem 0rem 0.2rem 0.2rem rgba(138, 33, 214, 0.653);
 }
 
 .roll-anchor-on {
     color: white;
     background-color: rgb(208, 151, 30);
+    box-shadow: 0rem 0rem 0.2rem 0.2rem rgb(208, 151, 30);
 }
 
 .depth-anchor-off {
