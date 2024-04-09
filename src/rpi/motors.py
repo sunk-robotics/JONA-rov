@@ -241,9 +241,9 @@ class Motors:
 def main():
     motors = Motors()
     motors.drive_motor(0, 1)
-    #  motors.test_motors()
-    #  motors.drive_motor(7, 0.15)
-    time.sleep(3)
+    motors.test_motors()
+    #  motors.drive_motor(0, 0.3)
+    time.sleep(2)
     motors.stop_all()
     #  motors.drive_motors(z_velocity=0.5)
     #  time.sleep(2)
