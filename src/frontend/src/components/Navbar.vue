@@ -1,9 +1,4 @@
 <script setup lang="ts">
-import { ref, type Ref } from 'vue';
-import Data from './Data.vue';
-import ElectricGraph from "./graphs/ElectricGraph.vue"
-import MotionGraph from './graphs/MotionGraph.vue';
-import TempGraph from './graphs/TempGraph.vue';
 import { useSensorDataStore } from '@/stores/sensorData';
 
 const sensorData = useSensorDataStore()
@@ -38,13 +33,13 @@ type SensorData = {
         <div v-if="sensorData.get('depth_anchor_enabled')" class="depth-anchor-on indicator">Depth</div>
         <div v-else class="depth-anchor-off indicator">Depth</div>
 
-        <div v-if="sensorData.get('yaw_anchor_enabled')" class="yaw-anchor-on indicator">Depth</div>
+        <div v-if="sensorData.get('yaw_anchor_enabled')" class="yaw-anchor-on indicator">Yaw</div>
         <div v-else class="yaw-anchor-off indicator">Yaw</div>
 
-        <div v-if="sensorData.get('roll_anchor_enabled')" class="roll-anchor-on indicator">Depth</div>
+        <div v-if="sensorData.get('roll_anchor_enabled')" class="roll-anchor-on indicator">Roll</div>
         <div v-else class="roll-anchor-off indicator">Roll</div>
 
-        <div v-if="sensorData.get('pitch_anchor_enabled')" class="pitch-anchor-on indicator">Depth</div>
+        <div v-if="sensorData.get('pitch_anchor_enabled')" class="pitch-anchor-on indicator">Pitch</div>
         <div v-else class="pitch-anchor-off indicator">Pitch</div>
 
     </nav>

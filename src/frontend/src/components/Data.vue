@@ -30,10 +30,10 @@ const sensorData = useSensorDataStore()
 
 <template>
     <ul>
-        <li>Internal Temperature: {{ sensorData.get('internal_temp') != null ? `${sensorData.get('internal_temp')}°C` :
+        <li>Internal Temperature: {{ sensorData.get('internal_temp') != null ? `${sensorData.get('internal_temp').toFixed(0)}°C` :
             "Unknown" }}</li>
         <li>External Temperature: {{ sensorData.get('external_temp') != null ?
-            `${sensorData.get('external_temp').toFixed(1)}°C` : "Unknown" }}</li>
+            `${sensorData.get('external_temp').toFixed(0)}°C` : "Unknown" }}</li>
         <li>Depth: {{ sensorData.get('depth') != null ? `${sensorData.get('depth').toFixed(2)} m` : "Unknown" }}</li>
         <li>Yaw: {{ sensorData.get('yaw') != null ? `${sensorData.get('yaw').toFixed(1)}°` : "Unknown" }}</li>
         <li>Roll: {{ sensorData.get('roll') != null ? `${sensorData.get('roll').toFixed(1)}°` : "Unknown" }}</li>
@@ -42,9 +42,9 @@ const sensorData = useSensorDataStore()
             "Unknown" }}</li>
         <li>5V Rail Current: {{ sensorData.get('current_5V') != null ? `${sensorData.get('current_5V').toFixed(2)} A` :
             "Unknown" }}</li>
-        <li>12V Rail Voltage: {{ sensorData.get('voltage_12V') != null ? `${sensorData.get('voltage_12V').toFixed()} V`
+        <li>12V Rail Voltage: {{ sensorData.get('voltage_12V') != null ? `${sensorData.get('voltage_12V').toFixed(2)} V`
             : "Unknown" }}</li>
-        <li>12V Rail Current: {{ sensorData.get('current_12V') != null ? `${sensorData.get('current_12V').toFixed()} A`
+        <li>12V Rail Current: {{ sensorData.get('current_12V') != null ? `${sensorData.get('current_12V').toFixed(2)} A`
             : "Unknown" }}</li>
         <!-- Not currently needed
         <li>X Acceleration: {{ sensorData.get('x_accel') != null ? `${sensorData.get('x_accel')!.toFixed(1)}m/s^2` : "Unknown" }}</li>
