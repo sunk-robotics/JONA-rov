@@ -38,13 +38,13 @@ type SensorData = {
         <div v-if="sensorData.get('depth_anchor_enabled')" class="depth-anchor-on indicator">Depth</div>
         <div v-else class="depth-anchor-off indicator">Depth</div>
 
-        <div v-if="sensorData.get('depth_anchor_enabled')" class="yaw-anchor-on indicator">Depth</div>
+        <div v-if="sensorData.get('yaw_anchor_enabled')" class="yaw-anchor-on indicator">Depth</div>
         <div v-else class="yaw-anchor-off indicator">Yaw</div>
 
-        <div v-if="sensorData.get('depth_anchor_enabled')" class="roll-anchor-on indicator">Depth</div>
+        <div v-if="sensorData.get('roll_anchor_enabled')" class="roll-anchor-on indicator">Depth</div>
         <div v-else class="roll-anchor-off indicator">Roll</div>
 
-        <div v-if="sensorData.get('depth_anchor_enabled')" class="pitch-anchor-on indicator">Depth</div>
+        <div v-if="sensorData.get('pitch_anchor_enabled')" class="pitch-anchor-on indicator">Depth</div>
         <div v-else class="pitch-anchor-off indicator">Pitch</div>
 
     </nav>
@@ -78,45 +78,45 @@ nav {
 
 .depth-anchor-on {
     color: rgb(255, 255, 255);
-    background-color: rgba(1, 206, 1, 0.544);
-    box-shadow: 0rem 0rem 0.2rem 0.2rem rgba(1, 206, 1, 0.544);
+    background-color: rgba(255, 208, 0, 0.884);
+    box-shadow: 0rem 0rem 0.2rem 0.2rem rgba(255, 208, 0, 0.884);
 }
 
 .yaw-anchor-on {
     color: white;
-    background-color: rgba(250, 41, 41, 0.733);
-    box-shadow: 0rem 0rem 0.2rem 0.2rem rgba(250, 41, 41, 0.733);
+    background-color: rgba(79, 41, 250, 0.733);
+    box-shadow: 0rem 0rem 0.2rem 0.2rem rgba(62, 41, 250, 0.733);
 }
 
 .pitch-anchor-on {
     color: white;
-    background-color: rgba(138, 33, 214, 0.653);
-    box-shadow: 0rem 0rem 0.2rem 0.2rem rgba(138, 33, 214, 0.653);
+    background-color: rgba(51, 255, 0, 0.653);
+    box-shadow: 0rem 0rem 0.2rem 0.2rem rgba(51, 255, 0, 0.653);
 }
 
 .roll-anchor-on {
     color: white;
-    background-color: rgb(208, 151, 30);
-    box-shadow: 0rem 0rem 0.2rem 0.2rem rgb(208, 151, 30);
+    background-color: rgb(208, 30, 30);
+    box-shadow: 0rem 0rem 0.2rem 0.2rem rgb(208, 30, 30);
 }
 
 .depth-anchor-off {
     color: rgba(255, 255, 255, 0.282);
-    background-color: rgba(16, 50, 16, 0.544);
+    background-color: rgb(48, 48, 48);
 }
 
 .yaw-anchor-off {
     color: rgba(255, 255, 255, 0.282);
-    background-color: rgba(50, 16, 16, 0.544);
+    background-color: rgb(48, 48, 48);
 }
 
 .pitch-anchor-off {
     color: rgba(255, 255, 255, 0.282);
-    background-color: rgba(36, 16, 50, 0.544);
+    background-color: rgb(48, 48, 48);
 }
 
 .roll-anchor-off {
     color: rgba(255, 255, 255, 0.282);
-    background-color: rgba(50, 39, 16, 0.544);
+    background-color: rgb(48, 48, 48);
 }
 </style>
