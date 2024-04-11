@@ -64,7 +64,7 @@ ul {
     height: 100%;
     /* align-items: center; */
     list-style-type: none;
-    padding: 0;
+    margin: 0;
     display: grid;
     grid-template-rows: repeat(5, 1fr);
     grid-auto-flow: column;

@@ -31,6 +31,8 @@ type SensorData = {
         <Graph :field="'x_accel'" :header="'X Acceleration (metres)'" :range="[0, 40]" />
         <Graph :field="'y_accel'" :header="'Y Acceleration (metres)'" :range="[0, 40]" />
         <Graph :field="'z_accel'" :header="'Z Acceleration (metres)'" :range="[0, 40]" />
+        <Graph :field="'depth'" :header="'Depth (metres)'" :range="[0, 40]" />
+
     </div>
 </template>
 
