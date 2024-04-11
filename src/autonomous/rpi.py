@@ -1,21 +1,29 @@
+import asyncio
 import cv2 as cv
 import numpy as np
 import websockets
+from websockets.sync.client import connect
 
 
-def main():
-    vc = cv.VideoCapture(2)
+class FrameHandler:
+    frame = None
 
-    if vc.isOpened():
-        ok, frame = vc.read()
-    else:
-        ok = False
+    @classmethod
+    async def frame_handler(cls, websocket):
+        async for message in websocket:
+            try:
+                cls.frame = cv.imdecode(message, cv.IMREAD_COLOR)
+            except Exception as e:
+                print(e)
 
-    while ok:
-        ok, img = vc.read()
-        key = cv.waitKey(20)
-        if key == 27:  # exit on ESC
-            break
+    @classmethod
+    def pump_frame(cls):
+        return cls.frame
+
+
+async def main_loop():
+    while True:
+        img = FrameHandler.pump_frame()
 
         img_height, img_width = img.shape[:2]
         img_center_x = img_width / 2
@@ -70,53 +78,15 @@ def main():
             print(f"X Error: {x_error}")
             print(f"Y Error: {y_error}")
 
-        #  for contour in contours:
-        #      M = cv.moments(contour)
 
-        #      # calculate x and y coordinate of center
-        #      try:
-        #          x_coord = int(M["m10"] / M["m00"])
-        #          y_coord = int(M["m01"] / M["m00"])
-        #      except ZeroDivisionError:
-        #          continue
+def main():
+    uri = "ws://localhost:3000"
+    loop = asyncio.get_event_loop()
+    websocket = websockets.connect(uri)
+    asyncio.ensure_future(FrameHandler.frame_handler(websocket))
+    asyncio.ensure_future(main_loop())
+    loop.run_forever()
 
-        #      cv.circle(img, (x_coord, y_coord), 5, (255, 255, 255), -1)
-        #      cv.putText(
-        #          img,
-        #          "Centroid",
-        #          (x_coord - 25, y_coord - 25),
-        #          cv.FONT_HERSHEY_SIMPLEX,
-        #          0.5,
-        #          (255, 255, 255),
-        #          2,
-        #      )
-
-        cv.imshow("Red", img)
-
-    cv.destroyAllWindows()
-    vc.release()
-
-
-#  # convert the grayscale image to binary (black and white) image
-#  ok, thresh = cv.threshold(gray_image, 127, 255, 0)
-#  im2, contours, hierarchy = cv.findContours(thresh, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
-
-#  for contour in contours:
-#      M = cv.moments(contour)
-
-#      # calculate x, y coordinate of center
-#      x_coord = int(M["m10"] / M["m00"])
-#      y_coord = int(M["m01"] / M["m00"])
-#      cv.circle(img, (x_coord, y_coord), 5, (255, 255, 255), -1)
-#      cv.putText(
-#          img,
-#          "centroid",
-#          (x_coord - 25, y_coord - 25),
-#          cv.FONT_HERSHEY_SIMPLEX,
-#          0.5,
-#          (255, 255, 255),
-#          2,
-#      )
 
 if __name__ == "__main__":
     try:
