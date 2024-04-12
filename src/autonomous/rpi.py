@@ -11,6 +11,7 @@ class FrameHandler:
     @classmethod
     async def frame_handler(cls, websocket):
         async for message in websocket:
+            print("ooga")
             try:
                 cls.frame = cv.imdecode(message, cv.IMREAD_COLOR)
             except Exception as e:
@@ -24,6 +25,8 @@ class FrameHandler:
 async def main_loop():
     while True:
         img = FrameHandler.pump_frame()
+        if img is None:
+            continue
 
         img_height, img_width = img.shape[:2]
         img_center_x = img_width / 2
@@ -83,6 +86,7 @@ def main():
     uri = "ws://localhost:3000"
     loop = asyncio.get_event_loop()
     websocket = websockets.connect(uri)
+    print(f"Connected to: {websocket}")
     asyncio.ensure_future(FrameHandler.frame_handler(websocket))
     asyncio.ensure_future(main_loop())
     loop.run_forever()
