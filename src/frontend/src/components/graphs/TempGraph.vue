@@ -29,8 +29,8 @@ type SensorData = {
 <template>
     <div>
         <Graph :field="'internal_temp'" :header="'Internal Temperature (°C)'" :range="[0, 100]" />
-        <Graph :field="'internal_temp'" :header="'External Temperature (°C)'" :range="[0, 100]" />
-        <Graph :field="'internal_temp'" :header="'CPU Temperature (°C)'" :range="[0, 100]" />
+        <Graph :field="'external_temp'" :header="'External Temperature (°C)'" :range="[0, 100]" />
+        <Graph :field="'cpu_temp'" :header="'CPU Temperature (°C)'" :range="[0, 100]" />
     </div>
 </template>
 
@@ -38,6 +38,8 @@ type SensorData = {
 div {
     width: 100%;
     height: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
     background-color: white;
 }
 </style>
