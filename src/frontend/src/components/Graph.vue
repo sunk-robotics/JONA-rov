@@ -48,8 +48,8 @@ setInterval(() => {
     if (ctx) {
         ctx?.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height)
 
-        // history.push({ timestamp: curr_sec, val: sensorData.get(field) as number })
-        history.push({ timestamp: curr_sec, val: (Math.sin(curr_sec) + 1) * 7.5  })
+        history.push({ timestamp: curr_sec, val: sensorData.get(field) as number })
+        // history.push({ timestamp: curr_sec, val: (Math.sin(curr_sec) + 1) * 7.5  })
 
         drawGraph()
     }
