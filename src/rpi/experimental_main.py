@@ -3,6 +3,7 @@ import adafruit_bno055
 import asyncio
 import board
 import json
+from gpiozero import CPUTemperature
 from math import acos, atan2, hypot
 from motors import Motors
 from ms5837 import MS5837_02BA
@@ -101,6 +102,7 @@ async def main_server():
         # read sensor information
         internal_temp = imu.temperature if imu is not None else None
         external_temp = depth_sensor.temperature() if depth_sensor is not None else None
+        cpu_temp = CPUTemperature().temperature
         depth = depth_sensor.depth() if depth_sensor is not None else None
         yaw = imu.euler[0] if imu is not None else None
         roll = imu.euler[1] if imu is not None else None
@@ -118,6 +120,7 @@ async def main_server():
             status_info = {
                 "internal_temp": internal_temp,
                 "external_temp": external_temp,
+                "cpu_temp": cpu_temp,
                 "depth": depth,
                 "yaw": yaw,
                 "roll": roll,
