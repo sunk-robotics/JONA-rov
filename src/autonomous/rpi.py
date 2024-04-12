@@ -9,7 +9,7 @@ class FrameHandler:
 
     @classmethod
     async def frame_handler(cls):
-        uri = "ws://localhost:3000"
+        uri = "ws://192.168.1.3:3001"
         async with websockets.connect(uri) as websocket:
             print("oogabooga")
             async for message in websocket:
@@ -31,6 +31,9 @@ async def main_loop():
             await asyncio.sleep(0.01)
             continue
 
+        print("image!")
+        await asyncio.sleep(0.01)
+        continue
         img_height, img_width = img.shape[:2]
         img_center_x = img_width / 2
         img_center_y = img_height / 2
