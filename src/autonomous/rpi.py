@@ -14,9 +14,8 @@ class FrameHandler:
             print("oogabooga")
             async for message in websocket:
                 try:
-                    cls.frame = cv2.imdecode(
-                        np.asarray(message, dtype="uint8"), cv2.IMREAD_COLOR
-                    )
+                    buffer = np.asarray(bytearray(message), dtype="uint8")
+                    cls.frame = cv2.imdecode(buffer, cv2.IMREAD_COLOR)
                 except Exception as e:
                     print(e)
 
@@ -32,7 +31,6 @@ async def main_loop():
             await asyncio.sleep(0.01)
             continue
 
-        cv2.imshow("Ooga", img)
         img_height, img_width = img.shape[:2]
         img_center_x = img_width / 2
         img_center_y = img_height / 2
