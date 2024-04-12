@@ -2,14 +2,15 @@ import asyncio
 import cv2 as cv
 import numpy as np
 import websockets
-from websockets.sync.client import connect
 
 
 class FrameHandler:
     frame = None
 
     @classmethod
-    async def frame_handler(cls, websocket):
+    async def frame_handler(cls):
+        websocket = await websockets.connect("ws://192.168.1.1:3000")
+        print("oogabooga")
         async for message in websocket:
             print("ooga")
             try:
@@ -83,11 +84,11 @@ async def main_loop():
 
 
 def main():
-    uri = "ws://localhost:3000"
+    #  uri = "ws://localhost:3000"
     loop = asyncio.get_event_loop()
-    websocket = websockets.connect(uri)
-    print(f"Connected to: {websocket}")
-    asyncio.ensure_future(FrameHandler.frame_handler(websocket))
+    #  websocket = websockets.connect(uri)
+    #  print(f"Connected to: {websocket}")
+    asyncio.ensure_future(FrameHandler.frame_handler())
     asyncio.ensure_future(main_loop())
     loop.run_forever()
 
