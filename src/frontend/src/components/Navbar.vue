@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useSensorDataStore } from '@/stores/sensorData';
-
-const sensorData = useSensorDataStore()
+import Thermometer from '/icons/thermometer.svg?raw';
+import Depth from '/icons/MdiArrowUpDownBold.svg?raw';
 
 type SensorData = {
     internal_temp: number | null,
@@ -26,22 +26,34 @@ type SensorData = {
     motor_lock_enabled: boolean | null
 }
 
+const sensorData = useSensorDataStore()
+
 </script>
 
 <template>
     <nav>
-        <div v-if="sensorData.get('depth_anchor_enabled')" class="depth-anchor-on indicator">Depth</div>
-        <div v-else class="depth-anchor-off indicator">Depth</div>
+        <div class="anchor-card card">
+            <div v-if="sensorData.get('depth_anchor_enabled')" class="depth-anchor-on anchor-indicator">Depth</div>
+            <div v-else class="depth-anchor-off anchor-indicator">Depth</div>
 
-        <div v-if="sensorData.get('yaw_anchor_enabled')" class="yaw-anchor-on indicator">Yaw</div>
-        <div v-else class="yaw-anchor-off indicator">Yaw</div>
+            <div v-if="sensorData.get('yaw_anchor_enabled')" class="yaw-anchor-on anchor-indicator">Yaw</div>
+            <div v-else class="yaw-anchor-off anchor-indicator">Yaw</div>
 
-        <div v-if="sensorData.get('roll_anchor_enabled')" class="roll-anchor-on indicator">Roll</div>
-        <div v-else class="roll-anchor-off indicator">Roll</div>
+            <div v-if="sensorData.get('roll_anchor_enabled')" class="roll-anchor-on anchor-indicator">Roll</div>
+            <div v-else class="roll-anchor-off anchor-indicator">Roll</div>
 
-        <div v-if="sensorData.get('pitch_anchor_enabled')" class="pitch-anchor-on indicator">Pitch</div>
-        <div v-else class="pitch-anchor-off indicator">Pitch</div>
+            <div v-if="sensorData.get('pitch_anchor_enabled')" class="pitch-anchor-on anchor-indicator">Pitch</div>
+            <div v-else class="pitch-anchor-off anchor-indicator">Pitch</div>
+        </div>
 
+        <div class="card temp-card">
+            <div class="card-icon" v-html="Thermometer"></div>
+            <div class="card-data">{{ sensorData.get('external_temp') != null ? `${sensorData.get('depth').toFixed(2)} m` : "?" }}</div>
+        </div>
+        <div class="card depth-card">
+            <div class="card-icon" v-html="Depth"></div>
+            <div class="card-data">{{ sensorData.get('depth') != null ? `${sensorData.get('depth').toFixed(2)} m` : "?" }}</div>
+        </div>
     </nav>
 </template>
 
@@ -55,10 +67,18 @@ nav {
     height: 3rem;
     background-color: rgb(22, 22, 22);
     padding: 1rem;
+    padding-bottom: 1.707rem;
     font-family: moonWalk;
 }
-  
-.indicator {
+
+.card-icon {
+    color: white;
+    display: inline-block;
+    height: fit-content;
+}
+
+.card-data {
+    color: white;
     display: inline-block;
     justify-content: center;
     align-items: center;
@@ -69,6 +89,34 @@ nav {
     border-radius: 1rem;
     margin-left: 1rem;
     box-shadow: 0.3rem 0.3rem 0.2rem rgb(19, 19, 19);
+    border-width: 6px;
+    border-color: white;
+}
+
+.anchor-indicator {
+    display: inline-block;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    padding: 1rem;
+    height: 1rem;
+    width: 4rem;
+    border-radius: 1rem;
+    margin-left: 1rem;
+    box-shadow: 0.3rem 0.3rem 0.2rem rgb(19, 19, 19);
+}
+
+.card {
+    display: inline-block;
+    justify-content: center;
+    align-items: center;
+    margin-right: 0.707rem;
+    background-color: rgb(63, 63, 63);
+    width: fit-content;
+    padding: 1rem;
+    padding-top: 0.3rem;
+    padding-bottom: 0.5rem;
+    border-radius: 0.7rem;
 }
 
 .depth-anchor-on {
@@ -87,6 +135,7 @@ nav {
     color: white;
     background-color: rgba(51, 255, 0, 0.653);
     box-shadow: 0rem 0rem 0.2rem 0.2rem rgba(51, 255, 0, 0.653);
+    margin-right: 1rem;
 }
 
 .roll-anchor-on {
@@ -108,6 +157,7 @@ nav {
 .pitch-anchor-off {
     color: rgba(255, 255, 255, 0.282);
     background-color: rgb(48, 48, 48);
+    margin-right: 1rem;
 }
 
 .roll-anchor-off {

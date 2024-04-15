@@ -59,6 +59,12 @@ const sensorData = useSensorDataStore()
 </template>
 
 <style scoped>
+@font-face {
+    font-family: fira;
+    src: url('public/fonts/FiraSans-Regular.ttf');
+    font-weight: bold;
+}
+
 ul {
     width: 100%;
     height: 100%;
@@ -68,11 +74,12 @@ ul {
     display: grid;
     grid-template-rows: repeat(5, 1fr);
     grid-auto-flow: column;
-    font-size: large;
+    font-size:medium;
 }
 
 li {
     text-wrap: nowrap;
     line-height: 4rem;
+    font-family: fira;
 }
 </style>

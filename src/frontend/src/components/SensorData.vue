@@ -4,9 +4,10 @@ import Data from './Data.vue';
 import ElectricGraph from "./graphs/ElectricGraph.vue"
 import MotionGraph from './graphs/MotionGraph.vue';
 import TempGraph from './graphs/TempGraph.vue';
+import ModelROV from './ModelROV.vue';
 import { useSensorDataStore } from '@/stores/sensorData';
 
-type dataDisplayStyle = "electric-graph" | "motion-graph" | "text-all" | "temp-graph"
+type dataDisplayStyle = "electric-graph" | "motion-graph" | "text-all" | "temp-graph" | "model-rov"
 let displayMode: Ref<dataDisplayStyle> = ref("text-all")
 
 type SensorData = {
@@ -36,9 +37,9 @@ const sensorData = useSensorDataStore()
 
 let ws: WebSocket;
 
-const url = "ws://192.168.1.1:8765";
+// const url = "ws://192.168.1.1:8765";
 //Comment out to use dummy data
-//const url = "ws://localhost:5000";
+const url = "ws://localhost:8765";
 
 ws = new WebSocket(url);
 const wsInfo = { 'client_type': 'web_client_main' }
@@ -80,12 +81,14 @@ function changeDisplayMode(mode: dataDisplayStyle) {
             <button @click="changeDisplayMode('text-all')" class="left-button">Text</button>
             <button @click="changeDisplayMode('temp-graph')">Temperature</button>
             <button @click="changeDisplayMode('electric-graph')"> Electric</button>
+            <button @click="changeDisplayMode('model-rov')"> Model</button>
             <button @click="changeDisplayMode('motion-graph')" class="right-button">Motion</button>
         </div>
         <Data :sensor-data="sensorData" v-if="displayMode == 'text-all'" />
         <ElectricGraph v-if="displayMode == 'electric-graph'" />
         <MotionGraph v-if="displayMode == 'motion-graph'" />
         <TempGraph v-if="displayMode == 'temp-graph'" />
+        <ModelROV v-if="displayMode == 'model-rov'"/>
     </div>
 </template>
 
@@ -118,7 +121,7 @@ function changeDisplayMode(mode: dataDisplayStyle) {
 button {
     background-color: rgb(63, 63, 63);
     color: white;
-    width: 25%;
+    width: 20%;
     height: 2rem;
     border: none;
     font-family: moonWalk;

@@ -24,7 +24,6 @@ main {
     grid-template-rows: 1fr 1fr;
     justify-items: center;
     align-items: center;
-    /* padding: 1rem; */
     box-sizing: border-box;
 }
 </style>
