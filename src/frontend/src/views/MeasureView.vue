@@ -16,13 +16,14 @@ onMounted(() => {
     if (imageStore.image == null) {
         return
     }
-    ctx.drawImage(imageStore.get(), 0, 0, 640, 480)
+    ctx.drawImage(imageStore.get(), 0, 0, 854, 480);
+    imageStore.set(null);
 
 })
 
 
-// measurement
-const REF_OBJ_LEN = 3;
+// length of the reference object in centimeters
+const REF_OBJ_LEN = 32;
 
 type Fields = "pixPerInch" | "leftSide" | "rightSide" | "topSide" | "fullLen" | "fullHgt" | null
 let lenObj = ref({
@@ -116,7 +117,7 @@ async function submitData() {
 
 <template>
     <div>
-        <canvas ref="frame" width="640" height="480" @click="handleClicks"></canvas>
+        <canvas ref="frame" width="854" height="480" @click="handleClicks"></canvas>
         <ul>
             <li><button>Reference Obj. Len: {{ REF_OBJ_LEN }} cms</button></li>
             <li><button @click="changeMode('leftSide')">Left Side Length: {{ lenObj.leftSide.toPrecision(4) }} cms</button></li>
