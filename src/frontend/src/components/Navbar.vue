@@ -2,6 +2,7 @@
 import { useSensorDataStore } from '@/stores/sensorData';
 import Thermometer from '/icons/thermometer.svg?raw';
 import Depth from '/icons/MdiArrowUpDownBold.svg?raw';
+import SpeedMult from '/icons/mdi-speedometer.svg?raw';
 
 type SensorData = {
     internal_temp: number | null,
@@ -48,11 +49,15 @@ const sensorData = useSensorDataStore()
 
         <div class="card temp-card">
             <div class="card-icon" v-html="Thermometer"></div>
-            <div class="card-data">{{ sensorData.get('external_temp') != null ? `${sensorData.get('depth').toFixed(2)} m` : "?" }}</div>
+            <div class="card-data">{{ sensorData.get('external_temp') != null ? `${sensorData.get('external_temp').toFixed(2)} m` : "?" }}</div>
         </div>
         <div class="card depth-card">
             <div class="card-icon" v-html="Depth"></div>
             <div class="card-data">{{ sensorData.get('depth') != null ? `${sensorData.get('depth').toFixed(2)} m` : "?" }}</div>
+        </div>
+        <div class="card depth-card">
+            <div class="card-icon" v-html="SpeedMult"></div>
+            <div class="card-data">{{ sensorData.get('speed_multiplier') != null ? `${sensorData.get('speed_multiplier').toFixed(2)} m` : "?" }}</div>
         </div>
     </nav>
 </template>
