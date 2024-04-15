@@ -101,7 +101,6 @@ canvas {
     aspect-ratio: 16/9;
     margin-left: 0.5em;
     margin-right: 0.5em;
-    padding: 1rem;
     height: 40vh;
     border-radius: 1rem;
     box-shadow: 1rem 1rem 0.5rem rgb(23, 23, 23);
