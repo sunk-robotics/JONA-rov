@@ -12,7 +12,7 @@ class FrameHandler:
         uri = "ws://192.168.1.2:3000"
         async with websockets.connect(uri) as websocket:
             while True:
-                message = websocket.recv()
+                message = await websocket.recv()
                 if message is None:
                     await asyncio.sleep(0.01)
                     continue
@@ -22,6 +22,8 @@ class FrameHandler:
                     cls.frame = cv2.imdecode(buffer, cv2.IMREAD_COLOR)
                 except Exception as e:
                     print(e)
+
+                await asyncio.sleep(0.01)
 
     @classmethod
     def pump_frame(cls):
