@@ -1,11 +1,10 @@
 import cv2 as cv
 import numpy as np
+import websockets
 
 
 def main():
-    # img = cv.imread("image.jpg")
-
-    vc = cv.VideoCapture(2)
+    vc = cv.VideoCapture(0)
 
     if vc.isOpened():
         ok, frame = vc.read()
@@ -23,7 +22,6 @@ def main():
         img_center_y = img_height / 2
 
         img_blur = cv.GaussianBlur(img, (9, 9), 0)
-        img_blur = cv.bilateralFilter(img_blur, 9, 75, 75)
         img_hsv = cv.cvtColor(img_blur, cv.COLOR_BGR2HSV)
 
         lower_red1 = np.array([0, 80, 80])
@@ -42,13 +40,9 @@ def main():
         )
 
         gray_img = cv.cvtColor(red_img, cv.COLOR_BGR2GRAY)
-        ok, thresh = cv.threshold(gray_img, 1, 255, cv.THRESH_BINARY)
+        ok, binary_img = cv.threshold(gray_img, 1, 255, cv.THRESH_BINARY)
 
-        contours, hierarchy = cv.findContours(
-            thresh, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE
-        )
-
-        moment = cv.moments(thresh)
+        moment = cv.moments(binary_img)
 
         if moment["m00"] != 0:
             x_coord = int(moment["m10"] / moment["m00"])
@@ -70,27 +64,6 @@ def main():
 
             print(f"X Error: {x_error}")
             print(f"Y Error: {y_error}")
-
-        #  for contour in contours:
-        #      M = cv.moments(contour)
-
-        #      # calculate x and y coordinate of center
-        #      try:
-        #          x_coord = int(M["m10"] / M["m00"])
-        #          y_coord = int(M["m01"] / M["m00"])
-        #      except ZeroDivisionError:
-        #          continue
-
-        #      cv.circle(img, (x_coord, y_coord), 5, (255, 255, 255), -1)
-        #      cv.putText(
-        #          img,
-        #          "Centroid",
-        #          (x_coord - 25, y_coord - 25),
-        #          cv.FONT_HERSHEY_SIMPLEX,
-        #          0.5,
-        #          (255, 255, 255),
-        #          2,
-        #      )
 
         cv.imshow("Red", img)
 

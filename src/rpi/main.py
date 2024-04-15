@@ -95,6 +95,7 @@ async def main_server():
         # read sensor information
         internal_temp = imu.temperature if imu is not None else None
         external_temp = depth_sensor.temperature() if depth_sensor is not None else None
+        cpu_temp = None
         depth = depth_sensor.depth() if depth_sensor is not None else None
         yaw = imu.euler[0] if imu is not None else None
         roll = imu.euler[1] if imu is not None else None

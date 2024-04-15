@@ -46,27 +46,37 @@ onMounted(() => {
 let curr_sec = 0;
 setInterval(() => {
     if (ctx) {
+        ctx?.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height)
+
         history.push({ timestamp: curr_sec, val: sensorData.get(field) as number })
+        // history.push({ timestamp: curr_sec, val: (Math.sin(curr_sec) + 1) * 7.5  })
+
         drawGraph()
     }
     curr_sec += 0.5
-}, 500)
+}, 100)
 
 function drawGraph() {
-    ctx?.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height)
 
-    let his_slice = history.length >= 5 ? history.slice(-5) : history;
+    let his_slice = history.length >= 50 ? history.slice(-50) : history;
 
     let x_pos = 20
     const hScalar = (range[1] - range[0]) / 5
 
+    console.log(his_slice.length);
+    
+    ctx?.beginPath()
+
     for (const { timestamp, val } of his_slice) {
+
         ctx?.lineTo(x_pos, ctx.canvas.height - 21 - (val * 7))
         ctx?.stroke()
-        ctx?.fillText(timestamp.toString(), x_pos, ctx.canvas.height - 10)
-        x_pos += 60
-    }
 
+        x_pos += 5
+        
+    }
+    
+    // headers
     let count = 0
     for (let i = range[0]; i <= range[1]; i += hScalar) {
         ctx?.fillText(i.toString(), 10, ctx.canvas.height - 23 - (count * 7))
@@ -76,6 +86,7 @@ function drawGraph() {
     let tWidth = ctx?.measureText(header).width
     let offset = (ctx?.canvas.width! - tWidth!) / 2
     ctx?.fillText(header, offset, 20)
+
 }
 </script>
 

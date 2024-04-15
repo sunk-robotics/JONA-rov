@@ -96,7 +96,7 @@ function connectWebsocket(url: string) {
 
 <style scoped>
 canvas {
-    background: url("smpte_color_bars.gif");
+    background: url("whitenoise.gif");
     background-size: cover;
     aspect-ratio: 16/9;
     margin-left: 0.5em;

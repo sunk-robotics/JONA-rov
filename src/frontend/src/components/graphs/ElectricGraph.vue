@@ -5,7 +5,7 @@ import Graph from "../Graph.vue";
 type SensorData = {
     internal_temp: number | null,
     external_temp: number | null,
-    temp: number | null,
+    cpu_temp: number | null,
     depth: number | null,
     yaw: number | null,
     roll: number | null,
@@ -28,10 +28,10 @@ type SensorData = {
 
 <template>
     <div>
-        <Graph :field="'voltage_12V'" :header="'12V voltage'" :range="[0, 15]" />
-        <Graph :field="'current_12V'" :header="'12V current'" :range="[0, 15]" />
-        <Graph :field="'voltage_5V'" :header="'5V voltage'" :range="[0, 15]" />
-        <Graph :field="'current_5V'" :header="'5V current'" :range="[0, 15]" />
+        <Graph :field="'voltage_12V'" :header="'12V Voltage'" :range="[-5, 20]" />
+        <Graph :field="'current_12V'" :header="'12V Current'" :range="[-5, 20]" />
+        <Graph :field="'voltage_5V'" :header="'5V Voltage'" :range="[0, 10]" />
+        <Graph :field="'current_5V'" :header="'5V Current'" :range="[0, 10]" />
     </div>
 </template>
 

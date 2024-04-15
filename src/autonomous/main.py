@@ -2,15 +2,13 @@
 import adafruit_bno055
 import asyncio
 import board
-import json
-from math import acos, atan2, hypot
 from motors import Motors
 from ms5837 import MS5837_02BA
-from orientation import cartesian_to_spherical, rotate_vector
-from pid import PID, RotationalPID
-from power_monitoring import PowerMonitor
+import json
 import websockets
 from ws_server import WSServer
+from pid import PID, RotationalPID
+from power_monitoring import PowerMonitor
 
 # how far the joystick needs to be moved before stabilization is temporarily
 # disabled (0..1)
@@ -51,16 +49,14 @@ async def main_server():
 
     roll_anchor = False
     # adjust the roll velocity to keep the ROV stable
-    roll_pid = RotationalPID(
-        proportional_gain=-0.025, integral_gain=-0.001, derivative_gain=0.0e-4
+    roll_pid = PID(
+        proportional_gain=-0.03, integral_gain=-0.001, derivative_gain=0.0e-4
     )
 
     pitch_anchor = False
     # adjust the pitch velocity to keep the ROV stable
     # TODO - Need to tune the PID parameters
-    pitch_pid = RotationalPID(
-        proportional_gain=0.03, integral_gain=0, derivative_gain=0
-    )
+    pitch_pid = PID(proportional_gain=0.03, integral_gain=0, derivative_gain=0)
 
     # multiplier for velocity to set speed limit
     speed_multiplier = 1
@@ -85,8 +81,6 @@ async def main_server():
     prev_yaw_anchor_toggle = None
     prev_motor_lock_toggle = None
 
-    depth_anchor_vector = (0, 0, 0)
-
     prev_z_velocity = 0
     prev_yaw_velocity = 0
     prev_roll_velocity = 0
@@ -101,14 +95,13 @@ async def main_server():
         # read sensor information
         internal_temp = imu.temperature if imu is not None else None
         external_temp = depth_sensor.temperature() if depth_sensor is not None else None
-        cpu_temp = None
         depth = depth_sensor.depth() if depth_sensor is not None else None
         yaw = imu.euler[0] if imu is not None else None
         roll = imu.euler[1] if imu is not None else None
         pitch = imu.euler[2] if imu is not None else None
-        x_accel = imu.linear_acceleration[0] if imu is not None else None
-        y_accel = imu.linear_acceleration[1] if imu is not None else None
-        z_accel = imu.linear_acceleration[2] if imu is not None else None
+        x_accel = imu.linear_acceleration[0]
+        y_accel = imu.linear_acceleration[1]
+        z_accel = imu.linear_acceleration[2]
         voltage_5V = power_monitor.voltage_5V() if power_monitor is not None else None
         current_5V = power_monitor.current_5V() if power_monitor is not None else None
         voltage_12V = power_monitor.voltage_12V() if power_monitor is not None else None
@@ -143,7 +136,7 @@ async def main_server():
         if joystick_data:
             x_velocity = joystick_data["right_stick"][0] * speed_multiplier
             y_velocity = joystick_data["left_stick"][1] * speed_multiplier
-            z_velocity = joystick_data["right_stick"][1] * speed_multiplier
+            z_velocity = -joystick_data["right_stick"][1] * speed_multiplier
             yaw_velocity = joystick_data["left_stick"][0] * speed_multiplier
             pitch_velocity = joystick_data["dpad"][1] * speed_multiplier
             roll_velocity = joystick_data["dpad"][0] * speed_multiplier
@@ -164,9 +157,9 @@ async def main_server():
             pitch_velocity = 0
             roll_velocity = 0
             speed_toggle = 0
-            depth_anchor_toggle = 0
             yaw_anchor_toggle = 0
             roll_anchor_toggle = 0
+            depth_anchor_toggle = 0
             pitch_anchor_toggle = 0
             motor_lock_toggle = 0
 
@@ -177,20 +170,19 @@ async def main_server():
             and abs(z_velocity) < DESTABLE_THRESH
             and abs(prev_z_velocity) > DESTABLE_THRESH
         ):
-            depth_pid.update_set_point(depth_sensor.depth())
+            depth_pid.update_set_point(depth)
+
+        prev_z_velocity = z_velocity
+        prev_yaw_velocity = yaw_velocity
+        prev_roll_velocity = roll_velocity
+        prev_pitch_velocity = pitch_velocity
 
         # set the z velocity according to the depth PID controller based on
         # current depth, the depth anchor should be temporarily disabled
         # when the z velocity is greater than a certain threshold in order to
         # give the pilot control over the depth when the depth anchor is on
-        #  if depth_anchor and depth is not None and abs(z_velocity) < DESTABLE_THRESH:
-        #      z_velocity = depth_pid.compute(depth)
-        if depth_anchor and depth is not None:
-            # the direction to move in the real world, in this case, straight up
-            absolute_vector = (0, 0, depth_pid.compute(depth))
-            # the ROV could be rotated, so the vector needs to be adjusted to account
-            # for the ROV's rotation
-            depth_anchor_vector = rotate_vector(absolute_vector, yaw, roll, pitch)
+        if depth_anchor and depth is not None and abs(z_velocity) < DESTABLE_THRESH:
+            z_velocity = depth_pid.compute(depth)
 
         # set the yaw velocity according to the yaw PID controller based on
         # current yaw angle
@@ -200,9 +192,10 @@ async def main_server():
         # set the roll velocity according to the roll PID controller based on
         # current roll angle
         if roll_anchor and roll is not None and abs(roll_velocity) < DESTABLE_THRESH:
-            #  print(f"Roll Angle: {roll}°")
-            #  print(f"Error: {roll_pid.set_point - roll}")
+            print(f"Roll Angle: {roll}°")
+            print(f"Error: {roll_pid.set_point - roll}")
             roll_velocity = roll_pid.compute(roll)
+            print(roll_velocity)
 
         # set the pitch velocity according to the pitch PID controller based on
         # current pitch angle
@@ -219,25 +212,15 @@ async def main_server():
             pitch_velocity = locked_velocities["pitch_velocity"]
             roll_velocity = locked_velocities["roll_velocity"]
 
-        translation_vector = (
-            x_velocity + depth_anchor_vector[0],
-            y_velocity + depth_anchor_vector[1],
-            z_velocity + depth_anchor_vector[2],
-        )
-
-        rotation_vector = (yaw_velocity, roll_velocity, pitch_velocity)
         # run the motors!
-        #  motors.drive_motors(
-        #      x_velocity,
-        #      y_velocity,
-        #      z_velocity,
-        #      yaw_velocity,
-        #      pitch_velocity,
-        #      roll_velocity,
-        #  )
-        print(f"Translation Vector: {translation_vector}")
-        print(f"Rotation Vector: {rotation_vector}")
-        motors.drive_vector(translation_vector, rotation_vector)
+        motors.drive_motors(
+            x_velocity,
+            y_velocity,
+            z_velocity,
+            yaw_velocity,
+            pitch_velocity,
+            roll_velocity,
+        )
 
         # increase or decrease speed when the dpad buttons are pressed
         if speed_toggle != prev_speed_toggle:
@@ -317,12 +300,8 @@ async def main_server():
 
         prev_depth_anchor_toggle = depth_anchor_toggle
         prev_roll_anchor_toggle = roll_anchor_toggle
+        prev_pitch_anchor_toggle = pitch_anchor_toggle
         prev_motor_lock_toggle = motor_lock_toggle
-
-        prev_z_velocity = z_velocity
-        prev_yaw_velocity = yaw_velocity
-        prev_roll_velocity = roll_velocity
-        prev_pitch_velocity = pitch_velocity
 
         await asyncio.sleep(0.01)
 

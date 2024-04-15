@@ -12,7 +12,7 @@ let displayMode: Ref<dataDisplayStyle> = ref("text-all")
 type SensorData = {
     internal_temp: number | null,
     external_temp: number | null,
-    temp: number | null,
+    cpu_temp: number | null,
     depth: number | null,
     yaw: number | null,
     roll: number | null,

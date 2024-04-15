@@ -5,7 +5,7 @@ import Graph from "../Graph.vue";
 type SensorData = {
     internal_temp: number | null,
     external_temp: number | null,
-    temp: number | null,
+    cpu_temp: number | null,
     depth: number | null,
     yaw: number | null,
     roll: number | null,
@@ -28,9 +28,11 @@ type SensorData = {
 
 <template>
     <div>
-        <Graph :field="'x_accel'" :header="'X Acceleration (metres)'" :range="[0, 40]" />
-        <Graph :field="'y_accel'" :header="'Y Acceleration (metres)'" :range="[0, 40]" />
-        <Graph :field="'z_accel'" :header="'Z Acceleration (metres)'" :range="[0, 40]" />
+        <Graph :field="'x_accel'" :header="'X Acceleration (m/s^2)'" :range="[-10, 10]" />
+        <Graph :field="'y_accel'" :header="'Y Acceleration (m/s^2)'" :range="[-10, 10]" />
+        <Graph :field="'z_accel'" :header="'Z Acceleration (m/s^2)'" :range="[-10, 10]" />
+        <Graph :field="'depth'" :header="'Depth (m)'" :range="[0, 40]" />
+
     </div>
 </template>
 

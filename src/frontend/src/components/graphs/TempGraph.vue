@@ -5,7 +5,7 @@ import Graph from "../Graph.vue";
 type SensorData = {
     internal_temp: number | null,
     external_temp: number | null,
-    temp: number | null,
+    cpu_temp: number | null,
     depth: number | null,
     yaw: number | null,
     roll: number | null,
@@ -28,7 +28,9 @@ type SensorData = {
 
 <template>
     <div>
-        <Graph :field="'temp'" :header="'temperature (celsius)'" :range="[0, 100]" />
+        <Graph :field="'internal_temp'" :header="'Internal Temperature (°C)'" :range="[0, 100]" />
+        <Graph :field="'external_temp'" :header="'External Temperature (°C)'" :range="[0, 100]" />
+        <Graph :field="'cpu_temp'" :header="'CPU Temperature (°C)'" :range="[0, 100]" />
     </div>
 </template>
 
@@ -36,6 +38,8 @@ type SensorData = {
 div {
     width: 100%;
     height: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
     background-color: white;
 }
 </style>
