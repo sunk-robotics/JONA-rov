@@ -7,9 +7,9 @@ import Navbar from '@/components/Navbar.vue'
 <template>
     <Navbar></Navbar>
     <main>
-        <Camera url="ws://192.168.1.1:3000" />
+        <Camera url="ws://192.168.1.2:3000" />
         <Camera url="ws://192.168.1.3:3001" />
-        <Camera url="ws://192.168.1.6:3002" />
+        <Camera url="ws://192.168.1.4:3002" />
         <SensorData />
     </main>
 </template>

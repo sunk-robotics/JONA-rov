@@ -9,10 +9,14 @@ class FrameHandler:
 
     @classmethod
     async def frame_handler(cls):
-        uri = "ws://192.168.1.1:3000"
+        uri = "ws://192.168.1.2:3000"
         async with websockets.connect(uri) as websocket:
-            print("oogabooga")
-            async for message in websocket:
+            while True:
+                message = websocket.recv()
+                if message is None:
+                    await asyncio.sleep(0.01)
+                    continue
+
                 try:
                     buffer = np.asarray(bytearray(message), dtype="uint8")
                     cls.frame = cv2.imdecode(buffer, cv2.IMREAD_COLOR)
