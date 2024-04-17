@@ -77,7 +77,7 @@ nav {
 }
 
 .card-icon {
-    color: white;
+    color: rgb(223, 223, 223);
     display: inline-block;
     height: fit-content;
 }
@@ -96,6 +96,7 @@ nav {
     box-shadow: 0.3rem 0.3rem 0.2rem rgb(19, 19, 19);
     border-width: 6px;
     border-color: white;
+    background-color: rgb(46, 46, 46)
 }
 
 .anchor-indicator {
