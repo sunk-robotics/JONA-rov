@@ -12,6 +12,10 @@ export const useImageStore = defineStore('image', () => {
         return image.value
     }
 
+    function clear(): void { 
+        image.value = null;
+    }
+
     return { image, set, get }
 })
 

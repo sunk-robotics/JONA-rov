@@ -23,6 +23,8 @@ ws.addEventListener("open", (event) => {
     console.log("Camera connected!");
 })
 
+let image: VideoFrame;
+
 ws.addEventListener("message", (event) => {
     let decoder = new ImageDecoder({
         type: "image/jpeg",
@@ -30,8 +32,7 @@ ws.addEventListener("message", (event) => {
     });
 
     let frame = decoder.decode().then((res: any) => {
-        const image = res.image;
-        imageStore.set(image)
+        image = res.image;
         ctx.drawImage(image, 0, 0, image.codedWidth, image.codedHeight, 0, 0, 1920, 1080)
     })
 
@@ -53,8 +54,7 @@ setInterval(() => {
             });
 
             let frame = decoder.decode().then((res: any) => {
-                const image = res.image;
-                imageStore.set(image)
+                image = res.image; 
                 ctx.drawImage(image, 0, 0, image.codedWidth, image.codedHeight, 0, 0, 1920, 1080)
             })
         })
@@ -77,8 +77,7 @@ function connectWebsocket(url: string) {
             });
 
             let frame = decoder.decode().then((res: any) => {
-                const image = res.image;
-                imageStore.set(image)
+                image = res.image;
                 ctx.drawImage(image, 0, 0, image.codedWidth, image.codedHeight, 0, 0, 1920, 1080)
             })
         })
@@ -89,7 +88,7 @@ function connectWebsocket(url: string) {
 </script>
 
 <template>
-    <router-link to="/measure">
+    <router-link to="/measure" @click="imageStore.set(image)">
         <canvas ref="canvas" width=1920 height=1080></canvas>
     </router-link>
 </template>
