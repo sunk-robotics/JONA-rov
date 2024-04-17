@@ -9,6 +9,7 @@ import websockets
 from ws_server import WSServer
 from pid import PID, RotationalPID
 from power_monitoring import PowerMonitor
+from autonomous import FrameHandler, center_of_red
 
 # how far the joystick needs to be moved before stabilization is temporarily
 # disabled (0..1)
@@ -64,6 +65,15 @@ async def main_server():
     # lock the controls in a certain state to allow for "autonomous" docking
     motor_lock = False
 
+    # whether the ROV is in autonomous mode or not
+    autonomous = False
+
+    autonomous_x_pid = PID(proportional_gain=0, integral_gain=0, derivative_gain=0)
+    autonomous_y_pid = PID(proportional_gain=0, integral_gain=0, derivative_gain=0)
+
+    prev_img_center_x = None
+    prev_img_center_y = None
+
     locked_velocities = {
         "x_velocity": 0,
         "y_velocity": 0,
@@ -80,6 +90,7 @@ async def main_server():
     prev_pitch_anchor_toggle = None
     prev_yaw_anchor_toggle = None
     prev_motor_lock_toggle = None
+    prev_autonomous_toggle = None
 
     prev_z_velocity = 0
     prev_yaw_velocity = 0
@@ -150,6 +161,7 @@ async def main_server():
             pitch_anchor_toggle = joystick_data["buttons"]["south"]
             yaw_anchor_toggle = joystick_data["buttons"]["west"]
             motor_lock_toggle = joystick_data["buttons"]["start"]
+            autonomous_toggle = joystick_data["buttons"]["select"]
         else:
             x_velocity = 0
             y_velocity = 0
@@ -163,6 +175,7 @@ async def main_server():
             depth_anchor_toggle = 0
             pitch_anchor_toggle = 0
             motor_lock_toggle = 0
+            autonomous_toggle = 0
 
         # re-enable the depth anchor when the z velocity falls below the
         # threshold
@@ -212,6 +225,34 @@ async def main_server():
             yaw_velocity = locked_velocities["yaw_velocity"]
             pitch_velocity = locked_velocities["pitch_velocity"]
             roll_velocity = locked_velocities["roll_velocity"]
+
+        if autonomous:
+            img = FrameHandler.pump_frame()
+            if img is None:
+                await asyncio.sleep(0.01)
+                continue
+
+            x_velocity = 0
+            y_velocity = 0.5
+            z_velocity = 0
+            yaw_velocity = 0
+            pitch_velocity = 0
+            roll_velocity = 0
+
+            # find the center of the image
+            img_height, img_width = img.shape[:2]
+            img_center_x = img_width / 2
+            img_center_y = img_height / 2
+
+            if img_center_x != prev_img_center_x or img_center_y != prev_img_center_y:
+                autonomous_x_pid.update_set_point(img_center_x)
+                autonomous_y_pid.update_set_point(img_center_y)
+
+            # find the x and y coordinates (in the image) of the red velcro square
+            x_coord, y_coord = center_of_red(img)
+
+            x_error = img_center_x - x_coord
+            y_error = img_center_y - y_coord
 
         # run the motors!
         motors.drive_motors(
@@ -299,10 +340,22 @@ async def main_server():
                 locked_velocities["roll_velocity"] = roll_velocity
                 print("Motor lock enabled!")
 
+        # toggle the autonomous task
+        if autonomous_toggle and not prev_autonomous_toggle:
+            if autonomous:
+                autonomous = False
+                FrameHandler.start_listening()
+                print("Autonomous mode disabled")
+            else:
+                autonomous = True
+                FrameHandler.stop_listening()
+                print("Autonomous task enabled!")
+
         prev_depth_anchor_toggle = depth_anchor_toggle
         prev_roll_anchor_toggle = roll_anchor_toggle
         prev_pitch_anchor_toggle = pitch_anchor_toggle
         prev_motor_lock_toggle = motor_lock_toggle
+        prev_autonomous_toggle = autonomous_toggle
 
         await asyncio.sleep(0.01)
 
@@ -311,6 +364,7 @@ def main():
     loop = asyncio.get_event_loop()
     ws_server = websockets.serve(WSServer.handler, "0.0.0.0", 8765, ping_interval=None)
     asyncio.ensure_future(ws_server)
+    asyncio.ensure_future(FrameHandler.frame_handler("ws://192.168.1.9:3000"))
     asyncio.ensure_future(main_server())
     loop.run_forever()
 
