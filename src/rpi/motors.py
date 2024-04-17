@@ -44,7 +44,7 @@ class Motors:
         self.kit.servo[self.motor_channel_table[motor_num]].angle = angle
 
     # move the ROV left or right
-    def calc_x_velocity(self, velocity: float):
+    def calc_yaw_velocity(self, velocity: float):
         # positive velocity - ROV moves right
         # negative velocity - ROV moves left
         self.motor_velocities[0] -= velocity
@@ -71,7 +71,7 @@ class Motors:
         self.motor_velocities[7] += velocity
 
     # turn the ROV left or right
-    def calc_yaw_velocity(self, velocity: float):
+    def calc_x_velocity(self, velocity: float):
         # positive velocity - ROV turns right
         # negative velocity - ROV turns left
         self.motor_velocities[0] -= velocity
@@ -144,8 +144,11 @@ class Motors:
         y_coord = 0
         z_coord = 0
 
-        z_rotate = math.radians(z_rotate % 360)
-        x_rotate = math.radians( (x_rotate + 90) % 360 )
+        #  z_rotate = math.radians(z_rotate % 360)
+        #  x_rotate = math.radians((x_rotate + 90) % 360)
+        z_rotate = math.radians(math.degrees(z_rotate) % 360)
+        x_rotate = math.radians((math.degrees(x_rotate) + 90) % 360)
+        print(f"x_rotate: {math.degrees(x_rotate)}")
 
         # find max x and y speed on horizontal plane
         if math.degrees(z_rotate) < 90:
@@ -197,10 +200,10 @@ class Motors:
 
     def find_motor_scalars(self, x_coord, y_coord, z_coord) -> (float, float, float):
         z_scalar = z_coord
-        a_scalar = x_coord / (2 * math.cos(math.pi / 3)) + y_coord / (
+        a_scalar = -x_coord / (2 * math.cos(math.pi / 3)) + y_coord / (
             2 * math.sin(math.pi / 3)
         )
-        b_scalar = x_coord / (2 * math.cos(math.pi / 3)) - y_coord / (
+        b_scalar = -x_coord / (2 * math.cos(math.pi / 3)) - y_coord / (
             2 * math.sin(math.pi / 3)
         )
         return (a_scalar, -b_scalar, z_scalar)
@@ -213,18 +216,23 @@ class Motors:
         elif r < -1:
             r = -1
 
+        print(f"r: {r} theta: {math.degrees(theta)} phi: {math.degrees(phi)}")
+
         yaw, roll, pitch = rotation_vector
-        max_speed_coords = self.find_max_speed(phi, theta)
+        max_speed_coords = self.find_max_speed(theta, phi)
         a, b, z = self.find_motor_scalars(
             max_speed_coords[0] * r / 2,
             max_speed_coords[1] * r / 2,
             max_speed_coords[2] * r / 4,
         )
-        self.motor_velocities = [b, a, -a, -b, z, z, z, z]
+        print(f"a: {a:.2f} b: {b:.2f} z: {z:.2f}")
+        self.motor_velocities = [-b, -a, a, b, -z, -z, -z, -z]
 
         self.calc_yaw_velocity(yaw)
         self.calc_roll_velocity(roll)
         self.calc_pitch_velocity(pitch)
+
+        print(self.motor_velocities)
 
         # make sure the motors don't exceed the speed limit
         for motor_num in range(len(self.motor_velocities)):
@@ -232,7 +240,6 @@ class Motors:
                 self.motor_velocities[motor_num] = self.speed_limit
             elif self.motor_velocities[motor_num] < -self.speed_limit:
                 self.motor_velocities[motor_num] = -self.speed_limit
-
 
         for motor_num, velocity in enumerate(self.motor_velocities):
             self.drive_motor(motor_num, velocity)

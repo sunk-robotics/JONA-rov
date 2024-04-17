@@ -105,7 +105,8 @@ async def main_server():
         depth = depth_sensor.depth() if depth_sensor is not None else None
         yaw = imu.euler[0] if imu is not None else None
         roll = imu.euler[1] if imu is not None else None
-        pitch = imu.euler[2] if imu is not None else None
+        # the imu is mounted vertically, so the pitch angle is 90 degrees off
+        pitch = imu.euler[2] - 90 if imu is not None else None
         x_accel = imu.linear_acceleration[0] if imu is not None else None
         y_accel = imu.linear_acceleration[1] if imu is not None else None
         z_accel = imu.linear_acceleration[2] if imu is not None else None
@@ -141,10 +142,10 @@ async def main_server():
 
         # set all the velocities to 0 if there's no joystick connected
         if joystick_data:
-            x_velocity = joystick_data["right_stick"][0] * speed_multiplier
+            x_velocity = joystick_data["left_stick"][0] * speed_multiplier
             y_velocity = joystick_data["left_stick"][1] * speed_multiplier
             z_velocity = joystick_data["right_stick"][1] * speed_multiplier
-            yaw_velocity = joystick_data["left_stick"][0] * speed_multiplier
+            yaw_velocity = joystick_data["right_stick"][0] * speed_multiplier
             pitch_velocity = joystick_data["dpad"][1] * speed_multiplier
             roll_velocity = joystick_data["dpad"][0] * speed_multiplier
             speed_toggle = (
@@ -317,6 +318,7 @@ async def main_server():
 
         prev_depth_anchor_toggle = depth_anchor_toggle
         prev_roll_anchor_toggle = roll_anchor_toggle
+        prev_pitch_anchor_toggle = pitch_anchor_toggle
         prev_motor_lock_toggle = motor_lock_toggle
 
         prev_z_velocity = z_velocity
