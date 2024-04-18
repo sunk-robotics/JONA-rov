@@ -35,7 +35,7 @@ function rotateModel(x: number, y: number, z: number) {
 function animate() {
     requestAnimationFrame(animate)
     let { yaw, pitch, roll } = sensorData.getAll()
-    rotateModel(yaw! * Math.PI / 180, pitch! * Math.PI / 180, yaw!  * Math.PI / 180)
+    rotateModel(pitch! * Math.PI / 180, roll! * Math.PI / 180, yaw!  * Math.PI / 180)
     console.log("-------" + yaw! * Math.PI / 360);
     
 }

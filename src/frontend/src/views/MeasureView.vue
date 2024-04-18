@@ -69,6 +69,7 @@ function handleClicks(e: MouseEvent) {
 
                 lenObj.value[metreMode.value] = pixLen / lenObj.value.pixPerInch
                 console.log(metreMode.value, " is ", lenObj.value[metreMode.value]);
+                rollMode()
             }
             break;
     }
@@ -112,7 +113,31 @@ async function submitData() {
     router.push("/coral")
 }
 
+function rollMode(): Fields {
+    switch (metreMode.value) {
+        case 'leftSide':
+            return 'rightSide'
+        
+        case 'rightSide':
+            return 'topSide'
 
+        case 'topSide':
+            return 'fullLen'
+
+        case 'fullLen':
+            return 'fullHgt'
+            
+        default:
+            break
+    }
+    return null
+}
+
+function clearData() {
+    for (let key in lenObj) {
+        lenObj.value[key as keyof typeof lenObj.value] = 0
+    }
+}
 </script>
 
 <template>
@@ -127,6 +152,7 @@ async function submitData() {
             <li><button @click="changeMode('fullHgt')">Full Height: {{ lenObj.fullHgt.toPrecision(4) }} cms</button></li>
         </ul>
         <button class="submit" @click="submitData">Send Data</button>
+        <button class="submit" @click="clearData">Clear Data</button>
     </div>
 </template>
 
