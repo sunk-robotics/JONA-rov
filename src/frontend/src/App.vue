@@ -17,6 +17,7 @@ body {
   max-height: 45vh;
   height: 45vh;
   background-color: rgb(37, 37, 37);
+  overflow: hidden;
 }
 
 </style>

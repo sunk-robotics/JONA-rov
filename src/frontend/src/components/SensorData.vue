@@ -37,9 +37,9 @@ const sensorData = useSensorDataStore()
 
 let ws: WebSocket;
 
-const url = "ws://192.168.1.1:8765";
+// const url = "ws://192.168.1.1:8765";
 //Comment out to use dummy data
-// const url = "ws://localhost:8765";
+const url = "ws://localhost:8765";
 
 ws = new WebSocket(url);
 const wsInfo = { 'client_type': 'web_client_main' }
@@ -84,13 +84,15 @@ function changeDisplayMode(mode: dataDisplayStyle) {
             <button @click="changeDisplayMode('model-rov')"> Model</button>
             <button @click="changeDisplayMode('motion-graph')" class="right-button">Motion</button>
         </div>
-        <Data :sensor-data="sensorData" v-if="displayMode == 'text-all'" />
-        <ElectricGraph v-if="displayMode == 'electric-graph'" />
-        <MotionGraph v-if="displayMode == 'motion-graph'" />
-        <TempGraph v-if="displayMode == 'temp-graph'" />
-        <Suspense>
-            <ModelROV v-if="displayMode == 'model-rov'"/>
-        </Suspense>
+        <div class="sensor-data">
+            <Data :sensor-data="sensorData" v-if="displayMode == 'text-all'" />
+            <ElectricGraph v-if="displayMode == 'electric-graph'" />
+            <MotionGraph v-if="displayMode == 'motion-graph'" />
+            <TempGraph v-if="displayMode == 'temp-graph'" />
+            <Suspense>
+                <ModelROV v-if="displayMode == 'model-rov'"/>
+            </Suspense>
+        </div>
     </div>
 </template>
 
@@ -104,7 +106,8 @@ function changeDisplayMode(mode: dataDisplayStyle) {
 .sensor {
     background-color: rgb(51, 51, 51);
     display: flex;
-    padding: 1rem;
+    /* padding: 1rem; */
+    flex-direction: column;
     justify-content: center;
     width: 85%;
     height: fit-content;
@@ -115,7 +118,7 @@ function changeDisplayMode(mode: dataDisplayStyle) {
 }
 
 .buttons {
-    position: absolute;
+    /* position: absolute; */
     top: -0.5rem;
     width: 100%;
 }
@@ -139,5 +142,12 @@ button:hover {
 
 .right-button {
     border-top-right-radius: 1rem;
+}
+
+.sensor-data {
+    box-sizing: border-box;
+    background-color: rgb(51, 51, 51);
+    width: 100%;
+    padding: 0 0.5rem 0.5rem 0.5rem;
 }
 </style>

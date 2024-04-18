@@ -43,7 +43,7 @@ animate()
 </script>
 <template>
     <div>
-        <TresCanvas clear-color="white" alpha shadows>
+        <TresCanvas clear-color="white" alpha shadows style="border-radius: 1rem;">
             <TresDirectionalLight :position="[-4, 8, 4]" :intensity="1.5" cast-shadow />
             <TresAmbientLight />
             <TresPerspectiveCamera :position="[0, 0, 800]" :look-at="[0, 0, 0]"/>
@@ -54,8 +54,8 @@ animate()
 
 <style scoped>
 div {
-    margin-top: 2rem;
     width: 40vw;
-    height: 20vw;
+    height: 18vw;
+    padding-top: 0.5rem;
 }
 </style>

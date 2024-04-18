@@ -40,6 +40,7 @@ div {
     height: 100%;
     display: grid;
     grid-template-columns: 1fr 1fr;
-    background-color: white;
+    background-color: rgb(51, 51, 51);
+    box-sizing: border-box;
 }
 </style>

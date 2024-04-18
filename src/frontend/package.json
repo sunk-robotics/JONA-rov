@@ -14,7 +14,9 @@
     "@tresjs/cientos": "^3.8.0",
     "@tresjs/core": "^3.8.1",
     "axios": "^1.6.7",
+    "chart.js": "^4.4.2",
     "pinia": "^2.1.7",
+    "primevue": "^3.51.0",
     "three": "^0.161.0",
     "vue": "^3.4.15",
     "vue-router": "^4.2.5"

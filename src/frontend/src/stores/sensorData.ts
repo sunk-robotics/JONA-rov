@@ -1,9 +1,9 @@
 import { defineStore } from "pinia"
 
-type SensorData = {
+export type SensorData = {
     internal_temp: number | null,
     external_temp: number | null,
-    temp: number | null, 
+    cpu_temp: number | null, 
     depth: number | null,
     yaw: number | null,
     roll: number | null,
@@ -26,7 +26,7 @@ type SensorData = {
 let base: SensorData = {
     internal_temp: null,
     external_temp: null,
-    temp: null, 
+    cpu_temp: null, 
     depth: null,
     yaw: null,
     roll: null,

@@ -4,6 +4,13 @@ import Thermometer from '/icons/thermometer.svg?raw';
 import Depth from '/icons/MdiArrowUpDownBold.svg?raw';
 import SpeedMult from '/icons/mdi-speedometer.svg?raw';
 
+import JoystickOn from '/icons/mdi-controller.svg?raw'
+import JoystickOff from '/icons/mdi-controller-off.svg?raw'
+
+import { gamepad_ws } from '@/scripts/gamepad';
+import { ref } from 'vue';
+
+
 type SensorData = {
     internal_temp: number | null,
     external_temp: number | null,
@@ -27,6 +34,11 @@ type SensorData = {
     motor_lock_enabled: boolean | null
 }
 
+const gp_conn_state = ref(false)
+gamepad_ws.addEventListener("open", () => gp_conn_state.value = true)
+gamepad_ws.addEventListener("close", () => gp_conn_state.value = false)
+
+
 const sensorData = useSensorDataStore()
 
 </script>
@@ -49,15 +61,18 @@ const sensorData = useSensorDataStore()
 
         <div class="card temp-card">
             <div class="card-icon" v-html="Thermometer"></div>
-            <div class="card-data">{{ sensorData.get('external_temp') != null ? `${sensorData.get('external_temp').toFixed(1)}°C` : "?" }}</div>
+            <div class="card-data">{{ sensorData.get('external_temp') != null ? `${(sensorData.get('external_temp') as number).toFixed(1)}°C` : "?" }}</div>
         </div>
         <div class="card depth-card">
             <div class="card-icon" v-html="Depth"></div>
-            <div class="card-data">{{ sensorData.get('depth') != null ? `${sensorData.get('depth').toFixed(2)} m` : "?" }}</div>
+            <div class="card-data">{{ sensorData.get('depth') != null ? `${(sensorData.get('depth') as number).toFixed(2)} m` : "?" }}</div>
         </div>
         <div class="card speed-mult-card">
             <div class="card-icon" v-html="SpeedMult"></div>
-            <div class="card-data">{{ sensorData.get('speed_multiplier') != null ? `${sensorData.get('speed_multiplier').toFixed(2)}x` : "?" }}</div>
+            <div class="card-data">{{ sensorData.get('speed_multiplier') != null ? `${(sensorData.get('speed_multiplier') as number).toFixed(2)}x` : "?" }}</div>
+        </div>
+        <div class="card gp-state">
+            <div class="card-icon" v-html="gp_conn_state ? JoystickOn : JoystickOff"></div>
         </div>
     </nav>
 </template>
@@ -69,6 +84,10 @@ const sensorData = useSensorDataStore()
 }
 
 nav {
+    position: relative;
+    width: 100%;
+    display: flex;
+    flex: 100%;
     height: 3rem;
     background-color: rgb(22, 22, 22);
     padding: 1rem;
@@ -78,8 +97,10 @@ nav {
 
 .card-icon {
     color: rgb(223, 223, 223);
-    display: inline-block;
-    height: fit-content;
+}
+
+.gp-state {
+    justify-self: end;
 }
 
 .card-data {
@@ -113,7 +134,10 @@ nav {
 }
 
 .card {
-    display: inline-block;
+    display: flex;
+    align-items: center;
+    /* display: inline-block; */
+    height: 100%;
     justify-content: center;
     align-items: center;
     margin-right: 0.707rem;
