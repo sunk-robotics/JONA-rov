@@ -1,51 +1,61 @@
-<script setup lang="ts">
-import { PerspectiveCamera, Scene, WebGLRenderer} from 'three'
+<script async setup lang="ts">
+import { TresCanvas, useLoader } from '@tresjs/core';
+import * as Three from 'three';
+import { OrbitControls, FBXModel, useFBX } from '@tresjs/cientos'
 import { useSensorDataStore } from '@/stores/sensorData';
-import { onMounted, ref, render } from 'vue';
+import { color, mod } from 'three/examples/jsm/nodes/Nodes.js';
 
-const model = ref<HTMLCanvasElement | null>(null)
-const scene = new Scene()
-//TODO: Make sizing responsive
-const camera = new PerspectiveCamera(75, 620 / 350, 0.1, 1000)
+let scene = new Three.Scene()
 
-scene.add(camera)
+const sensorData = useSensorDataStore()
+let model = await useFBX('./jona.fbx')
 
-onMounted(() => {
-    const renderer = new WebGLRenderer({
-        canvas: model.value as unknown as HTMLCanvasElement,
-        antialias: true,
-    });
-    //TODO: Make sizing responsive
-    renderer.setSize(620, 350)
-    renderer.render(scene, camera)
-})
+const boundingBox = new Three.Box3().setFromObject(model)
+boundingBox.getCenter(model.position)
+let pivot = new Three.Group()
+scene.add(pivot)
+pivot.add(model)
+model.position.set(0, -150, 0)
 
-type SensorData = {
-    internal_temp: number | null,
-    external_temp: number | null,
-    cpu_temp: number | null,
-    depth: number | null,
-    yaw: number | null,
-    roll: number | null,
-    pitch: number | null,
-    voltage_5V: number | null,
-    current_5V: number | null,
-    voltage_12V: number | null,
-    current_12V: number | null,
-    x_accel: number | null,
-    y_accel: number | null,
-    z_accel: number | null,
-    speed_multiplier: number | null,
-    depth_anchor_enabled: boolean | null,
-    yaw_anchor_enabled: boolean | null,
-    roll_anchor_enabled: boolean | null,
-    pitch_anchor_enabled: boolean | null,
-    motor_lock_enabled: boolean | null
+scene.add(pivot)
+pivot.rotateX(- Math.PI / 2)
+
+// x is pitch, y is roll, z is yaw
+let currRotation = { x: 0, y: 0, z: 0 }
+function rotateModel(x: number, y: number, z: number) {
+    pivot.rotateX(x - currRotation.x)
+    pivot.rotateY(y - currRotation.y)
+    pivot.rotateZ(z - currRotation.z)
+    currRotation.x = x;
+    currRotation.y = y;
+    currRotation.z = z;
 }
 
-const sensorData = useSensorDataStore() 
 
+function animate() {
+    requestAnimationFrame(animate)
+    let { yaw, pitch, roll } = sensorData.getAll()
+    rotateModel(yaw! * Math.PI / 180, pitch! * Math.PI / 180, yaw!  * Math.PI / 180)
+    console.log("-------" + yaw! * Math.PI / 360);
+    
+}
+animate()
 </script>
 <template>
-<canvas ref="model"></canvas>
+    <div>
+        <TresCanvas clear-color="white" alpha shadows>
+            <TresDirectionalLight :position="[-4, 8, 4]" :intensity="1.5" cast-shadow />
+            <TresAmbientLight />
+            <TresPerspectiveCamera :position="[0, 0, 800]" :look-at="[0, 0, 0]"/>
+            <primitive :object="scene" />
+        </TresCanvas>
+    </div>
 </template>
+
+<style scoped>
+div {
+    margin-top: 2rem;
+    width: 40vw;
+    height: 20vw;
+}
+</style>

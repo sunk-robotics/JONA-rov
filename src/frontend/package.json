@@ -11,6 +11,8 @@
     "type-check": "vue-tsc --build --force"
   },
   "dependencies": {
+    "@tresjs/cientos": "^3.8.0",
+    "@tresjs/core": "^3.8.1",
     "axios": "^1.6.7",
     "pinia": "^2.1.7",
     "three": "^0.161.0",

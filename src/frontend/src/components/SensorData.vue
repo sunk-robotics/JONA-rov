@@ -88,7 +88,9 @@ function changeDisplayMode(mode: dataDisplayStyle) {
         <ElectricGraph v-if="displayMode == 'electric-graph'" />
         <MotionGraph v-if="displayMode == 'motion-graph'" />
         <TempGraph v-if="displayMode == 'temp-graph'" />
-        <ModelROV v-if="displayMode == 'model-rov'"/>
+        <Suspense>
+            <ModelROV v-if="displayMode == 'model-rov'"/>
+        </Suspense>
     </div>
 </template>
 
