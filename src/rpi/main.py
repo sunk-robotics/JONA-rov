@@ -12,7 +12,7 @@ from power_monitoring import PowerMonitor
 
 # how far the joystick needs to be moved before stabilization is temporarily
 # disabled (0..1)
-DESTABLE_THRESH = 0.5
+destable_thresh = 0.5
 
 
 async def main_server():
@@ -164,14 +164,45 @@ async def main_server():
             pitch_anchor_toggle = 0
             motor_lock_toggle = 0
 
-        # re-enable the depth anchor when the z velocity falls below the
+        # when the controller speed increases beyond 50% of the speed multiplier,
+        # temporarily turn off any stabilization
+        destable_thresh = speed_multiplier / 2
+
+        # re-enable the depth anchor at a new depth when the z velocity falls below the
         # threshold
         if (
             depth_anchor
-            and abs(z_velocity) < DESTABLE_THRESH
-            and abs(prev_z_velocity) > DESTABLE_THRESH
+            and abs(z_velocity) < destable_thresh
+            and abs(prev_z_velocity) > destable_thresh
         ):
             depth_pid.update_set_point(depth)
+
+        # re-enable the yaw anchor at a new angle when the yaw velocity falls below the
+        # threshold
+        if (
+            yaw_anchor
+            and abs(yaw_velocity) < destable_thresh
+            and abs(prev_yaw_velocity) > destable_thresh
+        ):
+            yaw_pid.update_set_point(yaw)
+
+        # re-enable the roll anchor at a new angle when the roll velocity falls below the
+        # threshold
+        if (
+            roll_anchor
+            and abs(roll_velocity) < destable_thresh
+            and abs(prev_roll_velocity) > destable_thresh
+        ):
+            roll_pid.update_set_point(roll)
+
+        # re-enable the pitch anchor at a new angle when the pitch velocity falls below the
+        # threshold
+        if (
+            pitch_anchor
+            and abs(pitch_velocity) < destable_thresh
+            and abs(prev_pitch_velocity) > destable_thresh
+        ):
+            pitch_pid.update_set_point(pitch)
 
         prev_z_velocity = z_velocity
         prev_yaw_velocity = yaw_velocity
@@ -182,25 +213,22 @@ async def main_server():
         # current depth, the depth anchor should be temporarily disabled
         # when the z velocity is greater than a certain threshold in order to
         # give the pilot control over the depth when the depth anchor is on
-        if depth_anchor and depth is not None and abs(z_velocity) < DESTABLE_THRESH:
+        if depth_anchor and depth is not None and abs(z_velocity) < destable_thresh:
             z_velocity = depth_pid.compute(depth)
 
         # set the yaw velocity according to the yaw PID controller based on
         # current yaw angle
-        if yaw_anchor and yaw is not None and abs(yaw_velocity) < DESTABLE_THRESH:
+        if yaw_anchor and yaw is not None and abs(yaw_velocity) < destable_thresh:
             yaw_velocity = yaw_pid.compute(yaw)
 
         # set the roll velocity according to the roll PID controller based on
         # current roll angle
-        if roll_anchor and roll is not None and abs(roll_velocity) < DESTABLE_THRESH:
-            print(f"Roll Angle: {roll}°")
-            print(f"Error: {roll_pid.set_point - roll}")
+        if roll_anchor and roll is not None and abs(roll_velocity) < destable_thresh:
             roll_velocity = roll_pid.compute(roll)
-            print(roll_velocity)
 
         # set the pitch velocity according to the pitch PID controller based on
         # current pitch angle
-        if pitch_anchor and pitch is not None and abs(pitch_velocity) < DESTABLE_THRESH:
+        if pitch_anchor and pitch is not None and abs(pitch_velocity) < destable_thresh:
             #  print(f"Pitch Angle: {pitch}°")
             #  print(f"Error: {pitch_pid.set_point - pitch}")
             pitch_velocity = pitch_pid.compute(pitch)
@@ -300,6 +328,7 @@ async def main_server():
                 print("Motor lock enabled!")
 
         prev_depth_anchor_toggle = depth_anchor_toggle
+        prev_yaw_anchor_toggle = yaw_anchor_toggle
         prev_roll_anchor_toggle = roll_anchor_toggle
         prev_pitch_anchor_toggle = pitch_anchor_toggle
         prev_motor_lock_toggle = motor_lock_toggle
