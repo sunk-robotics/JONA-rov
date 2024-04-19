@@ -232,10 +232,10 @@ async def main_server():
                 await asyncio.sleep(0.01)
                 continue
 
-            x_velocity = 0
+            # always be moving forward
             y_velocity = 0.5
-            z_velocity = 0
-            yaw_velocity = 0
+
+            x_velocity = 0
             pitch_velocity = 0
             roll_velocity = 0
 
@@ -253,6 +253,9 @@ async def main_server():
 
             x_error = img_center_x - x_coord
             y_error = img_center_y - y_coord
+
+            yaw_velocity = autonomous_x_pid.compute(x_error)
+            z_velocity = autonomous_x_pid.compute(y_error)
 
         # run the motors!
         motors.drive_motors(
