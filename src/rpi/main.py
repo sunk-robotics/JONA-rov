@@ -135,10 +135,10 @@ async def main_server():
 
         # set all the velocities to 0 if there's no joystick connected
         if joystick_data:
-            x_velocity = joystick_data["right_stick"][0] * speed_multiplier
+            x_velocity = joystick_data["left_stick"][0] * speed_multiplier
             y_velocity = joystick_data["left_stick"][1] * speed_multiplier
             z_velocity = -joystick_data["right_stick"][1] * speed_multiplier
-            yaw_velocity = joystick_data["left_stick"][0] * speed_multiplier
+            yaw_velocity = joystick_data["right_stick"][0] * speed_multiplier
             pitch_velocity = joystick_data["dpad"][1] * speed_multiplier
             roll_velocity = joystick_data["dpad"][0] * speed_multiplier
             speed_toggle = (
