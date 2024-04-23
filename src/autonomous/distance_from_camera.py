@@ -64,7 +64,7 @@ def main():
 
     # loop over the images
 
-    vc = cv2.VideoCapture(0)
+    vc = cv2.VideoCapture(2)
 
     if vc.isOpened():
         ok, img = vc.read()
