@@ -43,6 +43,5 @@ div {
     grid-template-columns: 1fr 1fr;
     background-color: rgb(51, 51, 51);
     box-sizing: border-box;
-
 }
 </style>

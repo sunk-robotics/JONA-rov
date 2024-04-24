@@ -2,6 +2,7 @@
     import * as Three from 'three';
     import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
     import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { PI } from 'chart.js/helpers';
 
     const scene = new Three.Scene();
     const renderer = new Three.WebGLRenderer( {antialias: true} )
@@ -112,8 +113,33 @@
     }
 
     animate();
+
+    function Rerender() {
+        scene.traverse((child) => {
+            if (child instanceof Three.Mesh) {
+                child.visible = false
+            }
+        })
+        setTimeout(() => {
+            scene.traverse((child) => {
+                if (child instanceof Three.Mesh) {
+                    child.visible = true
+                }
+            })
+        }, 1200)
+    }
 </script>
 
 <template>
-
+    <button @click="Rerender">Rerender</button>
 </template>
+
+<style>
+    button {
+        z-index: 10;
+        font-size: 4rem;
+        position: fixed;
+        top: 2rem;
+        right: 2rem;
+    }
+</style>
