@@ -1,6 +1,5 @@
 import cv2
 import numpy as np
-import math
 
 
 def simplify_contour(contour, n_corners=4):
@@ -91,31 +90,7 @@ def find_corners(image):
     if len(corners) != 4:
         return None
 
-    corners = np.resize(corners, (4, 2))
-    print(f"Corners: {corners}")
-    keys = (corners[:, 0], corners[:, 1])
-
-    # Indices for sorted array
-    sorted_indices = np.lexsort(keys)
-
-    # Apply array indexing to obtain sorted array
-    corners = corners[sorted_indices]
-
-    top_corners = corners[0:2]
-    keys = (top_corners[:, 1], top_corners[:, 0])
-    sorted_indices = np.lexsort(keys)
-    top_corners = top_corners[sorted_indices]
-
-    bottom_corners = corners[2:4]
-    keys = (bottom_corners[:, 1], bottom_corners[:, 0])
-    sorted_indices = np.lexsort(keys)
-    bottom_corners = bottom_corners[sorted_indices]
-
-    corners = np.append(top_corners, bottom_corners, axis=0)
-
-    print(f"Sorted Corners: {corners}")
-
-    return corners.astype(np.float32)
+    return corners
 
 
 def main():
@@ -151,14 +126,10 @@ def main():
         #      ]
         #  )
         dist_coeffs = np.zeros((4, 1))
-        points_3d = np.array(
-            [[-3, -2.125, 0], [3, -2.125, 0], [-3, 2.125, 0], [3, 2.125, 0]]
-        )
-        #  points_3d = np.array([(0, 0, 0), (0, 6, 0), (4.25, 6, 0), (4.25, 0, 0)])
+        points_3d = np.array([(0, 0, 0), (0, 6, 0), (4.3, 6, 0), (4.3, 0, 0)])
         points_2d = find_corners(img)
-        #  print(f"Points: {points_2d}")
-        #  if points_2d is not None:
-        #      print(f"Points Sorted: {np.sort(points_2d, axis=0)}")
+
+        print(f"Manual: {points_2d}")
         #  points_3d = np.array(
         #      [
         #          (0.0, 0.0, 0.0),  # Nose tip
@@ -171,14 +142,12 @@ def main():
         #  )
 
         if points_2d is not None:
+            points_2d = np.resize(points_2d, (4, 2))
+            print(f"Camera: {points_2d}")
             ok, rotation_vec, translation_vec = cv2.solvePnP(
                 points_3d, points_2d, camera_matrix, dist_coeffs
             )
-            print(translation_vec)
-            dist_from_cam = math.hypot(
-                translation_vec[0], translation_vec[1], translation_vec[2]
-            )
-            print(dist_from_cam)
+            #  print(translation_vec)
 
         #  if points_2d is not None:
         #      for i in range(len(points_2d)):

@@ -9,7 +9,7 @@ import websockets
 from ws_server import WSServer
 from pid import PID, RotationalPID
 from power_monitoring import PowerMonitor
-from autonomous import FrameHandler, center_of_red
+from autonomous import FrameHandler, center_of_red, distance_from_square
 
 # how far the joystick needs to be moved before stabilization is temporarily
 # disabled (0..1)
@@ -227,7 +227,11 @@ async def main_server():
             roll_velocity = locked_velocities["roll_velocity"]
 
         if autonomous:
-            img = FrameHandler.pump_frame()
+            # when the ROV gets closer to the square than this distance, it should start
+            # trying to place the brain coral down
+            LANDING_DISTANCE = 40
+
+            img = ImageHandler.pump_image()
             if img is None:
                 await asyncio.sleep(0.01)
                 continue
@@ -255,7 +259,16 @@ async def main_server():
             y_error = img_center_y - y_coord
 
             yaw_velocity = autonomous_x_pid.compute(x_error)
-            z_velocity = autonomous_x_pid.compute(y_error)
+            z_velocity = -autonomous_x_pid.compute(y_error)
+
+            distance_from_square = distance_from_square(img)
+
+            if distance_from_square < LANDING_DISTANCE:
+                yaw_velocity = 0
+                z_velocity = 0
+                # pitch the ROV down by 30 degrees
+                pitch_pid.set_point = 30
+                pitch_velocity = pitch_pid.compute(pitch)
 
         # run the motors!
         motors.drive_motors(
