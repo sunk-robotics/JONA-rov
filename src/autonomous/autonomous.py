@@ -49,50 +49,75 @@ class ImageHandler:
 
 class CoralTransplanter:
     def __init__(self, pool_floor_depth: float):
-        pool_floor_depth = pool_floor_depth
-        square_coords = None
-        prev_square_coords = []
+        # the red square is at a height of about 32 cm above the pool floor
+        self.SQUARE_HEIGHT = 0.32
+        # the ROV should be 75 cm above the pool floor when searching for the square
+        self.LOCATING_HEIGHT = 0.75
+        # the ROV should be 8 cm above the height of the square when moving towards it
+        self.MOVING_HEIGHT = self.SQUARE_HEIGHT + 0.08
 
-        yaw_pid = PID(proportional_gain=0, integral_gain=0, derivative_gain=0)
+        # after the red square is no longer in the ROV's vision, the ROV should continue
+        # moving for another second
+        self.BLIND_MOVING_TIME = 1
+        # the ROV should move down for 2 seconds when setting the coral sample down
+        self.SETTING_DOWN_TIME = 2
+
+        self.pool_floor_depth = pool_floor_depth
+        self.square_depth = pool_floor_depth + self.SQUARE_HEIGHT
+        self.locating_depth = pool_floor_depth + self.LOCATING_HEIGHT
+        self.moving_depth = pool_floor_depth + self.MOVING_HEIGHT
+
+        self.square_coords = None
+        self.prev_square_coords = []
+
+        # the roll and pitch anchor should always be on
+        self.roll_anchor = True
+        self.pitch_anchor = True
+
+        self.yaw_pid = PID(proportional_gain=0, integral_gain=0, derivative_gain=0)
         # the ROV should stay parallel to the pool floor
-        roll_pid = PID(
+        self.roll_pid = PID(
             0, proportional_gain=-0.03, integral_gain=-0.001, derivative_gain=0.0e-4
         )
-        pitch_pid = PID(90, proportional_gain=0.03, integral_gain=0, derivative_gain=0)
-        depth_pid = PID(proportional_gain=2, integral_gain=0.05, derivative_gain=0.01)
+        self.pitch_pid = PID(
+            90, proportional_gain=0.03, integral_gain=0, derivative_gain=0
+        )
+        self.depth_pid = PID(
+            proportional_gain=2, integral_gain=0.05, derivative_gain=0.01
+        )
 
-        square_x_pid = PID(proportional_gain=0, integral_gain=0, derivative_gain=0)
-        square_y_pid = PID(proportional_gain=0, integral_gain=0, derivative_gain=0)
+        self.square_x_pid = PID(proportional_gain=0, integral_gain=0, derivative_gain=0)
+        self.square_y_pid = PID(proportional_gain=0, integral_gain=0, derivative_gain=0)
 
-        current_step = CoralStep.STARTING
+        self.current_step = CoralStep.STARTING
 
     def next_step(
         self, depth: float, yaw: float, roll: float, pitch: float
-    ) -> (float, float, float, float, float, float):
+    ) -> (float, float, float, float, float, float, bool):
         x_velocity = 0
         y_velocity = 0
         z_velocity = 0
-        yaw_velocity = self.yaw_pid.compute(yaw)
-        roll_velocity = self.roll_pid.compute(roll)
-        pitch_velocity = self.pitch_pid.compute(pitch)
+        yaw_velocity = 0
+        roll_velocity = self.roll_pid.compute(roll) if self.roll_anchor else 0
+        pitch_velocity = self.pitch_pid.compute(pitch) if self.pitch_anchor else 0
 
         img = ImageHandler.pump_frame()
         img_height, img_width = img.shape[:2]
         img_center_x = img_width / 2
-        img_center_y = img_height / 2
 
         if self.current_step == CoralStep.STARTING:
-            # target depth is 75 cm from the pool floor
-            target_depth = self.pool_floor_depth + 0.75
-            self.depth_pid.update_set_point(target_depth)
+            self.depth_pid.update_set_point(self.locating_depth)
+            # keep the ROV's yaw locked
+            self.yaw_pid.update_set_point(yaw)
             self.current_step = CoralStep.MOVING_UP
         # step 1 is to move up 75 cm so that the ROV can see the red square
         elif self.current_step == CoralStep.MOVING_UP:
-            EPSILON = 0.01
-            target_depth = self.pool_floor_depth + 0.75
             z_velocity = self.depth_pid.compute(depth)
+            yaw_velocity = self.yaw_pid.compute(depth)
+            # the ROV should be within 1 cm of the target depth
+            EPSILON = 0.01
             # move on to the next step if the ROV's height is within 1 cm of the target
-            if abs(target_depth - depth) < EPSILON:
+            if abs(self.locating_depth - depth) < EPSILON:
                 self.current_step = CoralStep.LOCATE_SQUARE
         # step 2 is to locate the red square, or rotate until the red square is found
         # NOTE: if the ROV can't find the square, it will just keep rotating in circles
@@ -108,10 +133,18 @@ class CoralTransplanter:
         # step 3 is to rotate until the center of the red square is in the horizontal
         # center of the ROV's vision and identify the angle of rotation
         elif self.current_step == CoralStep.CENTERING_SQUARE:
+            # the square should be within 10 pixels of the target location on screen
+            EPSILON = 10
             # we're only focusing on the x_coord
             x_coord, _ = center_of_red(img)
             if x_coord is not None:
                 yaw_velocity = self.square_x_pid.update_set_point(x_coord)
+                if abs(x_coord - img_center_x) < EPSILON:
+                    # now that the ROV is locked onto the square, lock the yaw
+                    self.yaw_pid.update_set_point(yaw)
+                    self.depth_pid.update_set_point(self.moving_height)
+                    self.prev_square_coords = []
+                    self.current_step == CoralStep.MOVING_DOWN
             # it's possible the red square could become obscured by the gripper
             # in that case, estimate it's position based on it's previous positions
             else:
@@ -119,6 +152,7 @@ class CoralTransplanter:
                 # the same place as last time
                 if len(self.prev_square_coords) == 1:
                     x_coord = self.prev_square_coords[0][0]
+                    yaw_velocity = self.square_x_pid.compute(x_coord)
                 # if there's more data points, use a regression to make a function to
                 # estimate the position
                 else:
@@ -132,6 +166,64 @@ class CoralTransplanter:
                     # estimates the x coord given the current time
                     approx_x_coord = model.coef_ * time.time() + model.intercept_
                     yaw_velocity = self.square_x_pid.compute(approx_x_coord)
+        # step 4 is to move down a few centimeters above the depth of the red square
+        elif self.current_step == CoralStep.MOVING_DOWN:
+            # the ROV should be within 1 cm of the target depth
+            EPSILON = 0.01
+            target_depth = self.pool_floor_depth + 0.75
+            z_velocity = self.depth_pid.compute(depth)
+            yaw_velocity = self.yaw_pid.compute(yaw)
+
+            if abs(target_depth - depth) < EPSILON:
+                self.current_step = CoralStep.APPROACHING_SQUARE
+        # step 5 is to approach the square blindly until the square comes into view
+        elif self.current_step == CoralStep.APPROACHING_SQUARE:
+            z_velocity = self.depth_pid.compute(depth)
+            yaw_velocity = self.yaw_pid.compute(yaw)
+            y_velocity = 0.75
+
+            x_coord, y_coord = center_of_red(img)
+            # may want to implement something to make sure the x and y coords are stable
+            # to prevent the algorithm from latching onto some random red object
+
+            if x_coord is not None and y_coord is not None:
+                self.prev_square_coords = [(x_coord, y_coord, time.time())]
+                self.current_step == CoralStep.ARRIVING_AT_SQUARE
+
+        # step 6 is to continue approaching the square, keeping the square centered
+        # horizontally in the ROV's vision, until the square falls off the bottom of the
+        # screen
+        elif self.current_step == CoralStep.ARRIVING_AT_SQUARE:
+            EPSILON_Y = 50
+
+            z_velocity = self.depth_pid.compute(depth)
+            yaw_velocity = self.yaw_pid.compute(yaw)
+            y_velocity = 0.75
+
+            x_coord, y_coord = center_of_red(img)
+            if x_coord is not None and y_coord is not None:
+                self.prev_square_coords.append((x_coord, y_coord, time.time()))
+                self.square_x_pid.update_set_point(img_center_x)
+                yaw_velocity = self.square_x_pid.compute(x_coord)
+
+            # check if the square disappeared off the bottom of the screen
+            elif abs(img_height - self.prev_square_coords[-1][1]) < EPSILON_Y:
+                self.start_time = time.time()
+                self.current_step = CoralStep.MOVING_BLINDLY
+
+        # after the red square is no longer visible, the ROV should continue moving
+        # so that the coral sample aligns with the square
+        elif self.current_step == CoralStep.MOVING_BLINDLY:
+            z_velocity = self.depth_pid.compute(depth)
+            y_velocity = 0.75
+            if time.time() - self.start_time >= self.BLIND_MOVING_TIME:
+                self.start_time = time.time()
+                self.current_step = CoralStep.SETTING_DOWN
+
+        elif self.current_step == CoralStep.SETTING_DOWN:
+            z_velocity = -0.5
+            if time.time() - self.start_time >= self.SETTING_DOWN_TIME:
+                self.current_step = CoralStep.FINISHED
 
         return (
             x_velocity,
@@ -140,6 +232,7 @@ class CoralTransplanter:
             yaw_velocity,
             roll_velocity,
             pitch_velocity,
+            self.current_step == CoralStep.FINISHED,
         )
 
 
@@ -153,8 +246,9 @@ class CoralStep(Enum):
     MOVING_DOWN = 4
     APPROACHING_SQUARE = 5
     ARRIVING_AT_SQUARE = 6
-    SETTING_DOWN = 7
-    FINISHED = 8
+    MOVING_BLINDLY = 7
+    SETTING_DOWN = 8
+    FINISHED = 9
 
 
 # find the x and y coordinates of the center of a red object in the image
@@ -357,7 +451,7 @@ def distance_from_square(img):
 
 async def main_loop():
     while True:
-        img = FrameHandler.pump_frame()
+        img = ImageHandler.pump_image()
         if img is None:
             await asyncio.sleep(0.01)
             continue
@@ -384,7 +478,7 @@ async def main_loop():
 def main():
     loop = asyncio.get_event_loop()
     #  print(f"Connected to: {websocket}")
-    asyncio.ensure_future(FrameHandler.frame_handler("ws://localhost:3000"))
+    asyncio.ensure_future(ImageHandler.image_handler("ws://localhost:3000"))
     asyncio.ensure_future(main_loop())
     loop.run_forever()
 
