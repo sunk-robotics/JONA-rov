@@ -14,8 +14,6 @@ class ImageHandler:
 
     @classmethod
     async def image_handler(cls, uri):
-        #  uri = "ws://192.168.1.2:3000"
-        #  uri = "ws://localhost:3000"
         async with websockets.connect(uri) as websocket:
             while True:
                 if not cls.is_listening:
@@ -59,8 +57,9 @@ class CoralTransplanter:
         # after the red square is no longer in the ROV's vision, the ROV should continue
         # moving for another second
         self.BLIND_MOVING_TIME = 1
-        # the ROV should move down for 2 seconds when setting the coral sample down
-        self.SETTING_DOWN_TIME = 2
+        # if the ROV takes longer than 3 seconds to reach the target depth, assume that
+        # the depth is slightly off and stop attempting
+        self.SETTING_DOWN_TIMEOUT = 3
 
         self.pool_floor_depth = pool_floor_depth
         self.square_depth = pool_floor_depth + self.SQUARE_HEIGHT
@@ -117,7 +116,7 @@ class CoralTransplanter:
             # the ROV should be within 1 cm of the target depth
             EPSILON = 0.01
             # move on to the next step if the ROV's height is within 1 cm of the target
-            if abs(self.locating_depth - depth) < EPSILON:
+            if abs(self.locating_depth - depth) <= EPSILON:
                 self.current_step = CoralStep.LOCATE_SQUARE
         # step 2 is to locate the red square, or rotate until the red square is found
         # NOTE: if the ROV can't find the square, it will just keep rotating in circles
@@ -139,7 +138,7 @@ class CoralTransplanter:
             x_coord, _ = center_of_red(img)
             if x_coord is not None:
                 yaw_velocity = self.square_x_pid.update_set_point(x_coord)
-                if abs(x_coord - img_center_x) < EPSILON:
+                if abs(x_coord - img_center_x) <= EPSILON:
                     # now that the ROV is locked onto the square, lock the yaw
                     self.yaw_pid.update_set_point(yaw)
                     self.depth_pid.update_set_point(self.moving_height)
@@ -174,7 +173,7 @@ class CoralTransplanter:
             z_velocity = self.depth_pid.compute(depth)
             yaw_velocity = self.yaw_pid.compute(yaw)
 
-            if abs(target_depth - depth) < EPSILON:
+            if abs(target_depth - depth) <= EPSILON:
                 self.current_step = CoralStep.APPROACHING_SQUARE
         # step 5 is to approach the square blindly until the square comes into view
         elif self.current_step == CoralStep.APPROACHING_SQUARE:
@@ -207,8 +206,9 @@ class CoralTransplanter:
                 yaw_velocity = self.square_x_pid.compute(x_coord)
 
             # check if the square disappeared off the bottom of the screen
-            elif abs(img_height - self.prev_square_coords[-1][1]) < EPSILON_Y:
+            elif abs(img_height - self.prev_square_coords[-1][1]) <= EPSILON_Y:
                 self.start_time = time.time()
+                self.depth_pid.update_set_point(self.square_depth)
                 self.current_step = CoralStep.MOVING_BLINDLY
 
         # after the red square is no longer visible, the ROV should continue moving
@@ -216,13 +216,23 @@ class CoralTransplanter:
         elif self.current_step == CoralStep.MOVING_BLINDLY:
             z_velocity = self.depth_pid.compute(depth)
             y_velocity = 0.75
+
             if time.time() - self.start_time >= self.BLIND_MOVING_TIME:
                 self.start_time = time.time()
                 self.current_step = CoralStep.SETTING_DOWN
 
+        # step 8 is to set the coral head down on the red square
         elif self.current_step == CoralStep.SETTING_DOWN:
+            # the ROV should be within 1 cm of the target depth
+            EPSILON = 1
             z_velocity = -0.5
-            if time.time() - self.start_time >= self.SETTING_DOWN_TIME:
+            # the ROV should move to the depth of the square, if for some reason, the
+            # depth is incorrect, the ROV will stop trying to move down after a certain
+            # period of time
+            if (
+                abs(self.square_depth - depth) <= EPSILON
+                or time.time() - self.start_time >= self.SETTING_DOWN_TIMEOUT
+            ):
                 self.current_step = CoralStep.FINISHED
 
         return (
