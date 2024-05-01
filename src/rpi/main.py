@@ -55,7 +55,9 @@ async def main_server():
     pitch_anchor = False
     # adjust the pitch velocity to keep the ROV stable
     # TODO - Need to tune the PID parameters
-    pitch_pid = PID(proportional_gain=0.03, integral_gain=0, derivative_gain=0)
+    pitch_pid = RotationalPID(
+        proportional_gain=0.02, integral_gain=0.007, derivative_gain=0
+    )
 
     # multiplier for velocity to set speed limit
     speed_multiplier = 1
@@ -103,7 +105,7 @@ async def main_server():
         depth = depth_sensor.depth() if depth_sensor is not None else None
         yaw = imu.euler[0] if imu is not None else None
         roll = imu.euler[1] if imu is not None else None
-        pitch = imu.euler[2] if imu is not None else None
+        pitch = imu.euler[2] - 90 if imu is not None else None
         x_accel = imu.linear_acceleration[0]
         y_accel = imu.linear_acceleration[1]
         z_accel = imu.linear_acceleration[2]
@@ -168,8 +170,8 @@ async def main_server():
             depth_anchor_toggle = 0
             pitch_anchor_toggle = 0
             motor_lock_toggle = 0
+            autonomous_toggle = 0
 
-        
         # when the controller speed increases beyond 50% of the speed multiplier,
         # temporarily turn off any stabilization
         destable_thresh = speed_multiplier / 2
@@ -349,7 +351,7 @@ async def main_server():
                 print("Motor lock enabled!")
 
         # toggle the autonomous control
-        if autonomous_toggle and not prev_autonomous toggle:
+        if autonomous_toggle and not prev_autonomous_toggle:
             if is_autonomous:
                 is_autonomous = False
                 print("Autonomous mode disabled!")

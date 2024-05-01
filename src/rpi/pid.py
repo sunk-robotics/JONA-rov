@@ -62,7 +62,9 @@ class RotationalPID(PID):
         self.last_time = current_time
 
         # find the signed smallest difference between the angles
+        print(self.set_point, angle)
         error = angle_between(self.set_point, angle)
+        print(error)
         # compute the integral ∫e(t) dt
         self.integral += error * d_time
         # compute the derivative
@@ -79,7 +81,15 @@ class RotationalPID(PID):
 
 
 def angle_between(x, y):
-    tau = 2 * math.pi
-    a = (x - y) % tau
-    b = (y - x) % tau
-    return -a if a < b else b
+    a = (x - y) % 360
+    b = (y - x) % 360
+    return a if a < b else -b
+
+
+def main():
+    #  print(90 - 100)
+    print(angle_between(-30, -60))
+
+
+if __name__ == "__main__":
+    main()
