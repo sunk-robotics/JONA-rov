@@ -1,6 +1,7 @@
 #!/bin/python
 import adafruit_bno055
 import asyncio
+from autonomous import ImageHandler, CoralTransplanter
 import board
 from motors import Motors
 from ms5837 import MS5837_02BA
@@ -44,19 +45,18 @@ async def main_server():
     yaw_anchor = False
     # adjust the yaw velocity to keep the ROV stable
     # TODO - Need to tune the PID parameters
-    yaw_pid = RotationalPID(proportional_gain=0, integral_gain=0, derivative_gain=0)
+    yaw_pid = RotationalPID(proportional_gain=0.03, integral_gain=0, derivative_gain=0)
 
     roll_anchor = False
     # adjust the roll velocity to keep the ROV stable
-    roll_pid = PID(
+    roll_pid = RotationalPID(
         proportional_gain=-0.03, integral_gain=-0.001, derivative_gain=0.0e-4
     )
 
     pitch_anchor = False
     # adjust the pitch velocity to keep the ROV stable
-    # TODO - Need to tune the PID parameters
     pitch_pid = RotationalPID(
-        proportional_gain=0.02, integral_gain=0.007, derivative_gain=0
+        proportional_gain=0.02, integral_gain=0.007, derivative_gain=0.005
     )
 
     # multiplier for velocity to set speed limit
@@ -308,12 +308,12 @@ async def main_server():
         # toggle the yaw anchor
         if imu is not None and yaw_anchor_toggle and not prev_yaw_anchor_toggle:
             if yaw_anchor:
-                print("Pitch anchor disabled!")
+                print("Yaw anchor disabled!")
                 yaw_anchor = False
             elif depth_sensor is not None:
                 yaw_anchor = True
                 yaw_pid.update_set_point(yaw)
-                print(f"Pitch anchor enabled at: {yaw_pid.set_point}°")
+                print(f"Yaw anchor enabled at: {yaw_pid.set_point}°")
 
         # toggle the roll anchor
         if imu is not None and roll_anchor_toggle and not prev_roll_anchor_toggle:
@@ -357,6 +357,8 @@ async def main_server():
                 print("Autonomous mode disabled!")
             else:
                 is_autonomous = True
+                ImageHandler.start_listening()
+                coral_transplanter = CoralTransplanter(depth)
                 print("Autonomous mode enabled!")
 
         prev_depth_anchor_toggle = depth_anchor_toggle
@@ -364,6 +366,7 @@ async def main_server():
         prev_roll_anchor_toggle = roll_anchor_toggle
         prev_pitch_anchor_toggle = pitch_anchor_toggle
         prev_motor_lock_toggle = motor_lock_toggle
+        prev_autonomous_toggle = autonomous_toggle
 
         await asyncio.sleep(0.01)
 
@@ -372,6 +375,7 @@ def main():
     loop = asyncio.get_event_loop()
     ws_server = websockets.serve(WSServer.handler, "0.0.0.0", 8765, ping_interval=None)
     asyncio.ensure_future(ws_server)
+    asyncio.ensure_future(ImageHandler.image_handler("ws://192.168.1.9:3000"))
     asyncio.ensure_future(main_server())
     loop.run_forever()
 
