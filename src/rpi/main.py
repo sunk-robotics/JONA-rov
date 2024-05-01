@@ -39,7 +39,6 @@ async def main_server():
 
     depth_anchor = False
     # adjust the y-velocity to have the ROV remain at a constant depth
-    # TODO - Likely need to re-tune the PID parameters
     depth_pid = PID(proportional_gain=2, integral_gain=0.05, derivative_gain=0.01)
 
     yaw_anchor = False
@@ -61,8 +60,12 @@ async def main_server():
     # multiplier for velocity to set speed limit
     speed_multiplier = 1
 
-    # lock the controls in a certain state to allow for "autonomous" docking
+    # lock the controls in a certain state
     motor_lock = False
+
+    # whether the ROV is attempting to autonomously transplant a sample of coral
+    is_autonomous = False
+    coral_transplanter = None
 
     locked_velocities = {
         "x_velocity": 0,
@@ -80,6 +83,7 @@ async def main_server():
     prev_pitch_anchor_toggle = None
     prev_yaw_anchor_toggle = None
     prev_motor_lock_toggle = None
+    prev_autonomous_toggle = None
 
     prev_z_velocity = 0
     prev_yaw_velocity = 0
@@ -150,6 +154,7 @@ async def main_server():
             pitch_anchor_toggle = joystick_data["buttons"]["south"]
             yaw_anchor_toggle = joystick_data["buttons"]["west"]
             motor_lock_toggle = joystick_data["buttons"]["start"]
+            autonomous_toggle = joystick_data["buttons"]["select"]
         else:
             x_velocity = 0
             y_velocity = 0
@@ -164,6 +169,7 @@ async def main_server():
             pitch_anchor_toggle = 0
             motor_lock_toggle = 0
 
+        
         # when the controller speed increases beyond 50% of the speed multiplier,
         # temporarily turn off any stabilization
         destable_thresh = speed_multiplier / 2
@@ -240,6 +246,21 @@ async def main_server():
             yaw_velocity = locked_velocities["yaw_velocity"]
             pitch_velocity = locked_velocities["pitch_velocity"]
             roll_velocity = locked_velocities["roll_velocity"]
+
+        # autonomous code should take precedence
+        if is_autonomous:
+            (
+                x_velocity,
+                y_velocity,
+                z_velocity,
+                yaw_velocity,
+                roll_velocity,
+                pitch_velocity,
+                is_finished,
+            ) = coral_transplanter.next_step(depth, yaw, roll, pitch)
+            if is_finished:
+                is_autonomous = False
+                print("Autonomous task completed!")
 
         # run the motors!
         motors.drive_motors(
@@ -326,6 +347,15 @@ async def main_server():
                 locked_velocities["pitch_velocity"] = pitch_velocity
                 locked_velocities["roll_velocity"] = roll_velocity
                 print("Motor lock enabled!")
+
+        # toggle the autonomous control
+        if autonomous_toggle and not prev_autonomous toggle:
+            if is_autonomous:
+                is_autonomous = False
+                print("Autonomous mode disabled!")
+            else:
+                is_autonomous = True
+                print("Autonomous mode enabled!")
 
         prev_depth_anchor_toggle = depth_anchor_toggle
         prev_yaw_anchor_toggle = yaw_anchor_toggle
