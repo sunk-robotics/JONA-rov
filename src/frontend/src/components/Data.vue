@@ -46,7 +46,7 @@ const sensorData = useSensorDataStore()
             : "Unknown" }}</li>
         <li>12V Rail Current: {{ sensorData.get('current_12V') != null ? `${(sensorData.get('current_12V') as number).toFixed(2)} A`
             : "Unknown" }}</li>
-        <li>Speed Multiplier: {{ sensorData.get('speed_multiplier') != null ? `${sensorData.get('speed_multiplier')}x` :
+        <li>Speed Multiplier: {{ sensorData.get('speed_multiplier') != null ? `${(sensorData.get('speed_multiplier') as number).toFixed(2)}x` :
             "Unknown" }}</li>
         <!-- Not currently needed
         <li>X Acceleration: {{ sensorData.get('x_accel') != null ? `${sensorData.get('x_accel')!.toFixed(1)}m/s^2` : "Unknown" }}</li>
