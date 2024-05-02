@@ -4,6 +4,7 @@ from picamera2.outputs import FileOutput
 from picamera2.encoders import MJPEGEncoder
 import io
 import asyncio
+from libcamera import controls, Rectangle
 from websockets import serve, ConnectionClosed
 
 
@@ -24,12 +25,11 @@ class WSServer:
         try:
             while True:
                 if cls.output.frame is None:
-                    await asyncio.sleep(0.01)
+                    await asyncio.sleep(0.001)
                     continue
-                # str_data = base64.b64encode(cls.output.frame)
 
                 await websocket.send(bytearray(cls.output.frame))
-                await asyncio.sleep(0.01)
+                await asyncio.sleep(0.001)
 
         except ConnectionClosed:
             print("Client disconnected!")
@@ -37,9 +37,11 @@ class WSServer:
 
 def main():
     picam2 = Picamera2()
-    picam2.set_controls({"AfMode": 2})
-    picam2.configure(picam2.create_video_configuration(
-        main={"size": (1920, 1080)}))
+    print(picam2.sensor_modes)
+    config = picam2.create_video_configuration(main={"size": (854, 480)}, raw={"size": (1920, 1080)})
+    # config = picam2.create_video_configuration(main={"size": (1280, 720)})
+    picam2.configure(config)
+    picam2.set_controls({"AfMode": controls.AfModeEnum.Continuous, "AeEnable": True, "AwbEnable": True, "AwbMode": controls.AwbModeEnum.Indoor})
     picam2.start_recording(MJPEGEncoder(25_000_000),
                            FileOutput(WSServer.output))
 
@@ -54,4 +56,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
