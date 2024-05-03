@@ -148,8 +148,8 @@ function clearData() {
             <li><button @click="changeMode('leftSide')">Left Side Length: {{ lenObj.leftSide.toPrecision(4) }} cms</button></li>
             <li><button @click="changeMode('rightSide')">Right Side Length: {{ lenObj.rightSide.toPrecision(4) }} cms</button></li>
             <li><button @click="changeMode('topSide')">Top Side Length: {{ lenObj.topSide.toPrecision(4) }} cms</button></li>
-            <li><button @click="changeMode('fullLen')">Full Length: {{ lenObj.fullLen.toPrecision(4) }} cms</button></li>
-            <li><button @click="changeMode('fullHgt')">Full Height: {{ lenObj.fullHgt.toPrecision(4) }} cms</button></li>
+            <li><button >Full Length: {{ lenObj.fullLen.toPrecision(4) }} cms</button></li>
+            <li><button >Full Height: {{ lenObj.fullHgt.toPrecision(4) }} cms</button></li>
         </ul>
         <button class="submit" @click="submitData">Send Data</button>
         <button class="submit" @click="clearData">Clear Data</button>

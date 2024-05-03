@@ -39,16 +39,16 @@ async def main_server():
         internal_temp = (math.sin(delta_time / 1000) / 2 + 0.5) * 100
         external_temp = (math.sin(delta_time / 1000) / 2 + 0.5) * 100
         depth = (math.sin(delta_time / 100) / 2 + 0.5) * 10
-        yaw = (math.sin(delta_time / 100) / 2 + 0.5) * 360
-        roll = (math.sin(delta_time / 100) / 2 + 0.5) * 360
-        pitch = (math.sin(delta_time / 100) / 2 + 0.5) * 360
+        yaw = (math.sin(delta_time) / 2 + 0.5) * 360
+        roll = (math.sin(delta_time) / 2 + 0.5) * 360
+        pitch = (math.sin(delta_time) / 2 + 0.5) * 360
         x_accel = (math.sin(delta_time / 100) / 2 + 0.5)
         y_accel = (math.sin(delta_time / 100) / 2 + 0.5)
         z_accel = (math.sin(delta_time / 100) / 2 + 0.5)
         voltage_5V = (math.sin(delta_time / 100) / 2 + 0.5) 
         current_5V = (math.sin(delta_time / 100) / 2 + 0.5)
-        voltage_12V = (math.sin(delta_time / 100) / 2 + 0.5)
-        current_12V = (math.sin(delta_time / 100) / 2 + 0.5)
+        voltage_12V = (math.sin(delta_time) / 2 + 0.5)
+        current_12V = (math.sin(delta_time) / 2 + 0.5)
 
         # send fake data to web client
         if WSServer.web_client_main is not None:

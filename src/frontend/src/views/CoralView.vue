@@ -2,7 +2,6 @@
     import * as Three from 'three';
     import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
     import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { PI } from 'chart.js/helpers';
 
     const scene = new Three.Scene();
     const renderer = new Three.WebGLRenderer( {antialias: true} )
@@ -115,6 +114,8 @@ import { PI } from 'chart.js/helpers';
     animate();
 
     function Rerender() {
+        if (measure.height == 0 && measure.width == 0) return;
+
         scene.traverse((child) => {
             if (child instanceof Three.Mesh) {
                 child.visible = false
@@ -128,18 +129,35 @@ import { PI } from 'chart.js/helpers';
             })
         }, 1200)
     }
+
+    let measure = {
+        height: 0,
+        width: 0
+    }
 </script>
 
 <template>
-    <button @click="Rerender">Rerender</button>
+    <div>
+        <button @click="Rerender">Rerender</button>
+        <input type="text" pattern="[0-9]*" placeholder="height" v-bind="measure.height">
+        <input type="text" pattern="[0-9]*" placeholder="height" v-bind="measure.width">
+
+    </div>
 </template>
 
-<style>
-    button {
+<style scoped>
+    div {
+        display: grid;
+        grid-auto-flow: row;
         z-index: 10;
         font-size: 4rem;
         position: fixed;
         top: 2rem;
         right: 2rem;
+    }
+
+    div > * {
+        text-align: center;
+        padding: 1rem;
     }
 </style>
