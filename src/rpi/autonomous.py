@@ -146,7 +146,7 @@ class CoralTransplanter:
             x_coord, y_coord = center_of_red(img)
             if x_coord is not None and y_coord is not None:
                 yaw_velocity = 0
-                self.prev_square_coords.append(x_coord, y_coord, time.time())
+                self.prev_square_coords.append((x_coord, y_coord, time.time()))
                 self.square_x_pid.update_set_point(img_center_x)
                 self.current_step = CoralStep.CENTERING_SQUARE
                 print("Moving on Next Step: Centering Square")
