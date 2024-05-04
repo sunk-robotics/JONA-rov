@@ -8,6 +8,25 @@ import time
 import websockets
 
 
+class WSServer:
+    frame = None
+
+    @classmethod
+    async def handler(cls, websocket, path):
+        print("Client connected!")
+        try:
+            while True:
+                if cls.frame is None:
+                    await asyncio.sleep(0.001)
+                    continue
+
+                await websocket.send(bytearray(cls.frame))
+                await asyncio.sleep(0.001)
+
+        except websockets.ConnectionClosed:
+            print("Client disconnected!")
+
+
 class ImageHandler:
     image = None
     is_listening = False
@@ -93,10 +112,14 @@ class CoralTransplanter:
             proportional_gain=2, integral_gain=0.05, derivative_gain=0.01
         )
 
-        self.square_x_pid = PID(proportional_gain=0, integral_gain=0, derivative_gain=0)
-        self.square_y_pid = PID(proportional_gain=0, integral_gain=0, derivative_gain=0)
+        self.square_x_pid = PID(
+            proportional_gain=0.01, integral_gain=0, derivative_gain=0
+        )
+        self.square_y_pid = PID(
+            proportional_gain=0.1, integral_gain=0, derivative_gain=0
+        )
 
-        self.current_step = CoralStep.STARTING
+        self.current_step = CoralStep.LOCATING_SQUARE
 
     def next_step(
         self, depth: float, yaw: float, roll: float, pitch: float
@@ -123,6 +146,7 @@ class CoralTransplanter:
         img_height, img_width = img.shape[:2]
         img_center_x = img_width / 2
 
+        print(self.current_step)
         if self.current_step == CoralStep.STARTING:
             self.depth_pid.update_set_point(self.locating_depth)
             print(f"Locating Depth: {self.locating_depth}")
@@ -133,7 +157,7 @@ class CoralTransplanter:
         # step 1 is to move up 75 cm so that the ROV can see the red square
         elif self.current_step == CoralStep.MOVING_UP:
             z_velocity = self.depth_pid.compute(depth)
-            yaw_velocity = self.yaw_pid.compute(depth)
+            yaw_velocity = self.yaw_pid.compute(yaw)
             # the ROV should be within 1 cm of the target depth
             EPSILON = 0.01
             # move on to the next step if the ROV's height is within 1 cm of the target
@@ -149,6 +173,8 @@ class CoralTransplanter:
                 self.prev_square_coords.append((x_coord, y_coord, time.time()))
                 self.square_x_pid.update_set_point(img_center_x)
                 self.current_step = CoralStep.CENTERING_SQUARE
+                print(f"Found square at ({x_coord}, {y_coord})!")
+                print(f"Prev Square Coords: {self.prev_square_coords}")
                 print("Moving on Next Step: Centering Square")
             else:
                 yaw_velocity = 0.5
@@ -160,22 +186,26 @@ class CoralTransplanter:
             # we're only focusing on the x_coord
             x_coord, _ = center_of_red(img)
             if x_coord is not None:
-                yaw_velocity = self.square_x_pid.update_set_point(x_coord)
+                print(f"X-coord of square: {x_coord}")
+                #  yaw_velocity = self.square_x_pid.compute(x_coord)
                 if abs(x_coord - img_center_x) <= EPSILON:
                     # now that the ROV is locked onto the square, lock the yaw
                     self.yaw_pid.update_set_point(yaw)
-                    self.depth_pid.update_set_point(self.moving_height)
+                    self.depth_pid.update_set_point(self.moving_depth)
                     self.prev_square_coords = []
-                    self.current_step == CoralStep.MOVING_DOWN
+                    self.current_step = CoralStep.MOVING_DOWN
                     print("Moving on Next Step: Moving Down")
             # it's possible the red square could become obscured by the gripper
             # in that case, estimate it's position based on it's previous positions
             else:
+                if len(self.prev_square_coords) <= 0:
+                    print("How did this happen?")
+                    return (0, 0, 0, 0, 0, 0, True)
                 # if there's only one previous recorded position, just assume it's in
                 # the same place as last time
                 if len(self.prev_square_coords) == 1:
                     x_coord = self.prev_square_coords[0][0]
-                    yaw_velocity = self.square_x_pid.compute(x_coord)
+                    #  yaw_velocity = self.square_x_pid.compute(x_coord)
                 # if there's more data points, use a regression to make a function to
                 # estimate the position
                 else:
@@ -183,14 +213,17 @@ class CoralTransplanter:
                         [c[0] for c in self.prev_square_coords]
                     ).reshape((-1, 1))
                     prev_times = [c[2] for c in self.prev_square_coords]
+                    print(f"X Coords: {prev_x_coords}")
+                    print(f"Times: {prev_times}")
                     # performs a linear regression on the data to approximate a function
                     # for the x coordinate given a time
                     model = LinearRegression().fit(prev_x_coords, prev_times)
                     # estimates the x coord given the current time
                     approx_x_coord = model.coef_ * time.time() + model.intercept_
-                    yaw_velocity = self.square_x_pid.compute(approx_x_coord)
+                    #  yaw_velocity = self.square_x_pid.compute(approx_x_coord)
         # step 4 is to move down a few centimeters above the depth of the red square
         elif self.current_step == CoralStep.MOVING_DOWN:
+            print("Moving down!")
             # the ROV should be within 1 cm of the target depth
             EPSILON = 0.01
             target_depth = self.pool_floor_depth + 0.75
@@ -322,6 +355,8 @@ def center_of_red(img: np.ndarray) -> (int, int):
         cv2.bitwise_and(img_hsv, img_hsv, mask=red_mask), cv2.COLOR_HSV2BGR
     )
 
+    WSServer.frame = bytearray(cv2.imencode(".jpg", red_img)[1])
+
     # turn the image into a binary (black and white) image, where the white parts
     # represent anything red, and the black parts represent anything not red
     gray_img = cv2.cvtColor(red_img, cv2.COLOR_BGR2GRAY)
@@ -335,6 +370,9 @@ def center_of_red(img: np.ndarray) -> (int, int):
         return None, None
 
     largest_contour = max(contours, key=cv2.contourArea)
+    print(f"Contour Area: {cv2.contourArea(largest_contour)}")
+    if cv2.contourArea(largest_contour) < 100:
+        return None, None
     moment = cv2.moments(largest_contour)
     if moment["m00"] == 0:
         return None, None
@@ -525,9 +563,11 @@ async def main_loop():
 
 def main():
     loop = asyncio.get_event_loop()
+    ws_server = websockets.serve(WSServer.handler, "0.0.0.0", 3009, ping_interval=None)
+    asyncio.ensure_future(ws_server)
     #  print(f"Connected to: {websocket}")
-    asyncio.ensure_future(ImageHandler.image_handler("ws://localhost:3000"))
-    asyncio.ensure_future(main_loop())
+    #  asyncio.ensure_future(ImageHandler.image_handler("ws://localhost:3000"))
+    #  asyncio.ensure_future(main_loop())
     loop.run_forever()
 
 

@@ -1,6 +1,7 @@
 #!/bin/python
 import adafruit_bno055
 import asyncio
+import autonomous
 from autonomous import ImageHandler, CoralTransplanter
 import board
 from motors import Motors
@@ -373,8 +374,12 @@ async def main_server():
 
 def main():
     loop = asyncio.get_event_loop()
+    auto_ws_server = websockets.serve(
+        autonomous.WSServer.handler, "0.0.0.0", 3009, ping_interval=None
+    )
     ws_server = websockets.serve(WSServer.handler, "0.0.0.0", 8765, ping_interval=None)
     asyncio.ensure_future(ws_server)
+    asyncio.ensure_future(auto_ws_server)
     asyncio.ensure_future(ImageHandler.image_handler("ws://192.168.1.9:3000"))
     asyncio.ensure_future(main_server())
     loop.run_forever()
