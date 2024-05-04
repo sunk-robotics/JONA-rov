@@ -26,7 +26,7 @@ def center_of_red(img: np.ndarray) -> (int, int):
     #  red_mask = red_mask1 + red_mask2
 
     lower_red = np.array([0, 10, 10])
-    upper_red = np.array([20, 255, 150])
+    upper_red = np.array([30, 255, 150])
     red_mask = cv2.inRange(img_hsv, lower_red, upper_red)
 
     # turn all parts of the image that aren't red into black
@@ -60,7 +60,8 @@ def center_of_red(img: np.ndarray) -> (int, int):
 def main():
     #  vc = cv2.VideoCapture(0)
 
-    img = cv2.imread("coral_images/red_square1.png")
+    # problem images: 5, 8, 9, 12
+    img = cv2.imread("coral_images/red_square8.png")
     x_coord, y_coord = center_of_red(img)
     if x_coord is not None and y_coord is not None:
         cv2.circle(img, (x_coord, y_coord), 5, (255, 255, 255), -1)
