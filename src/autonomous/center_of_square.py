@@ -14,6 +14,11 @@ def center_of_red(img: np.ndarray) -> (int, int):
     # of possible red values
     img_hsv = cv2.cvtColor(img_blur, cv2.COLOR_BGR2HSV)
 
+    #  (h, s, v) = cv2.split(img_hsv)
+    #  s = s * 2
+    #  s = np.clip(s, 0, 255)
+    #  img_hsv = cv2.merge([h, s, v])
+
     #  lower_red1 = np.array([0, 80, 80])
     #  upper_red1 = np.array([10, 255, 255])
 
@@ -25,29 +30,35 @@ def center_of_red(img: np.ndarray) -> (int, int):
 
     #  red_mask = red_mask1 + red_mask2
 
-    lower_red = np.array([0, 10, 10])
-    upper_red = np.array([30, 255, 150])
-    red_mask = cv2.inRange(img_hsv, lower_red, upper_red)
+    for i in range(1, 4):
+        lower_red = np.array([0, 10, 10])
+        upper_red = np.array([i * 10, 255, 150])
+        red_mask = cv2.inRange(img_hsv, lower_red, upper_red)
 
-    # turn all parts of the image that aren't red into black
-    red_img = cv2.cvtColor(
-        cv2.bitwise_and(img_hsv, img_hsv, mask=red_mask), cv2.COLOR_HSV2BGR
-    )
-    cv2.imshow("Red Image", red_img)
+        # turn all parts of the image that aren't red into black
+        red_img = cv2.cvtColor(
+            cv2.bitwise_and(img_hsv, img_hsv, mask=red_mask), cv2.COLOR_HSV2BGR
+        )
+        cv2.imshow("Red Image", red_img)
 
-    # turn the image into a binary (black and white) image, where the white parts
-    # represent anything red, and the black parts represent anything not red
-    gray_img = cv2.cvtColor(red_img, cv2.COLOR_BGR2GRAY)
-    ok, thresh = cv2.threshold(gray_img, 1, 255, cv2.THRESH_BINARY)
+        # turn the image into a binary (black and white) image, where the white parts
+        # represent anything red, and the black parts represent anything not red
+        gray_img = cv2.cvtColor(red_img, cv2.COLOR_BGR2GRAY)
+        ok, thresh = cv2.threshold(gray_img, 1, 255, cv2.THRESH_BINARY)
 
-    contours, hierarchy = cv2.findContours(
-        thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE
-    )
+        contours, hierarchy = cv2.findContours(
+            thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE
+        )
 
-    if len(contours) <= 0:
-        return None, None
+        if (
+            len(contours) > 0
+            and cv2.contourArea(max(contours, key=cv2.contourArea)) > 300
+        ):
+            break
+        elif i == 3:
+            return None, None
 
-    largest_contour = max(contours, key=cv2.contourArea)
+    #  largest_contour = max(contours, key=cv2.contourArea)
     moment = cv2.moments(largest_contour)
     if moment["m00"] == 0:
         return None, None
@@ -61,8 +72,21 @@ def main():
     #  vc = cv2.VideoCapture(0)
 
     # problem images: 5, 8, 9, 12
-    img = cv2.imread("coral_images/red_square8.png")
-    x_coord, y_coord = center_of_red(img)
+    img = cv2.imread("coral_images/red_square20.png")
+    img_width = img.shape[1]
+    img_height = img.shape[0]
+    mask = np.zeros(img.shape[:2], dtype="uint8")
+
+    cv2.rectangle(
+        mask,
+        (int(img_width / 5), int(img_height / 4)),
+        (int(img_width * (4 / 5)), img_height),
+        255,
+        -1,
+    )
+    masked = cv2.bitwise_and(img, img, mask=mask)
+
+    x_coord, y_coord = center_of_red(masked)
     if x_coord is not None and y_coord is not None:
         cv2.circle(img, (x_coord, y_coord), 5, (255, 255, 255), -1)
         cv2.putText(
