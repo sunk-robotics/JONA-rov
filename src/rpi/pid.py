@@ -4,9 +4,6 @@ import time
 
 # used to adjust the motor velocities to keep the ROV at a constant position
 class PID:
-    #  last_time = None
-    #  last_error = None
-
     def __init__(
         self,
         set_point=0,
@@ -23,7 +20,6 @@ class PID:
         self.last_time = time.time()
         self.last_error = set_point
 
-    # takes in the acceleration as the process value
     def compute(self, process_value):
         current_time = time.time()
         d_time = time.time() - self.last_time
@@ -31,12 +27,9 @@ class PID:
 
         # difference between the target value and measured value
         error = self.set_point - process_value
-        #  print(f"Set point: {self.set_point}")
-        #  print(f"Process value: {process_value}")
-        #  print(f"Error: {error}")
         # compute the integral ∫e(t) dt
         self.integral += error * d_time
-        # compute the derivative
+        # compute the derivative de/dt
         d_error = (error - self.last_error) / d_time
         self.last_error = error
 
