@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
 import { useImageStore } from "@/stores/image"
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
 import router from '@/router';
 
 axios.defaults.withCredentials = true;
@@ -110,8 +110,9 @@ async function submitData() {
     const url = `http://127.0.0.1:3000/left=${Math.round(leftSide) * 10}&right=${Math.round(rightSide) * 10}&top=${Math.round(topSide) * 10}`
     try { 
         axios.defaults.withCredentials = true
-        let req = new XMLHttpRequest()
-        await axios.get(url)
+        let res = await axios.get(url, { withCredentials: false })
+        console.log(res.data);
+        
         console.log("redirecting...");
         router.push("/coral")
     } catch (e) {
