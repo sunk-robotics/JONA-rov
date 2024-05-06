@@ -22,6 +22,7 @@ onMounted(() => {
 })
 
 
+
 // length of the reference object in centimeters
 const REF_OBJ_LEN = 32;
 
@@ -38,8 +39,12 @@ let metreMode = ref<Fields>("pixPerInch")
 
 let points: { x: number, y: number }[] = []
 function handleClicks(e: MouseEvent) {
+
     
     const [x, y] = [e.offsetX, e.offsetY];
+    if (metreMode.value == "pixPerInch") {
+        ctx.fillStyle = "red"
+    }
     drawPoint(x, y)
 
     switch (metreMode.value) {
@@ -53,6 +58,7 @@ function handleClicks(e: MouseEvent) {
                 )
 
                 lenObj.value.pixPerInch = pixLen / REF_OBJ_LEN
+                metreMode.value = rollMode()
             }
             break;
 
@@ -69,7 +75,7 @@ function handleClicks(e: MouseEvent) {
 
                 lenObj.value[metreMode.value] = pixLen / lenObj.value.pixPerInch
                 console.log(metreMode.value, " is ", lenObj.value[metreMode.value]);
-                rollMode()
+                metreMode.value = rollMode()
             }
             break;
     }
@@ -79,7 +85,7 @@ function handleClicks(e: MouseEvent) {
 }
 
 function drawPoint(x: number, y: number) {
-    ctx.fillStyle = "red"
+    ctx.beginPath()
     ctx.arc(x, y, 8, 0, 2*Math.PI)
     ctx.fill()
     ctx.closePath()
@@ -103,28 +109,37 @@ async function submitData() {
     
     const url = `http://127.0.0.1:3000/left=${Math.round(leftSide) * 10}&right=${Math.round(rightSide) * 10}&top=${Math.round(topSide) * 10}`
     try { 
-        await fetch(url, { credentials: "omit" } ) 
+        axios.defaults.withCredentials = true
+        let req = new XMLHttpRequest()
+        await axios.get(url)
+        console.log("redirecting...");
+        router.push("/coral")
     } catch (e) {
-        console.log("error...");
+        console.log("error...", e);
         
     }
-    console.log("redirecting...");
-    
-    router.push("/coral")
 }
 
 function rollMode(): Fields {
     switch (metreMode.value) {
+        case "pixPerInch":
+            ctx.fillStyle = "orange"
+            return "leftSide"
+
         case 'leftSide':
+            ctx.fillStyle = "yellow"
             return 'rightSide'
         
         case 'rightSide':
+            ctx.fillStyle = "green"
             return 'topSide'
 
         case 'topSide':
+            ctx.fillStyle = "blue"
             return 'fullLen'
 
         case 'fullLen':
+            ctx.fillStyle = "purple"
             return 'fullHgt'
             
         default:
@@ -141,23 +156,25 @@ function clearData() {
 </script>
 
 <template>
-    <div>
+    <div class="main">
         <canvas ref="frame" width="854" height="480" @click="handleClicks"></canvas>
         <ul>
-            <li><button>Reference Obj. Len: {{ REF_OBJ_LEN }} cms</button></li>
-            <li><button @click="changeMode('leftSide')">Left Side Length: {{ lenObj.leftSide.toPrecision(4) }} cms</button></li>
-            <li><button @click="changeMode('rightSide')">Right Side Length: {{ lenObj.rightSide.toPrecision(4) }} cms</button></li>
-            <li><button @click="changeMode('topSide')">Top Side Length: {{ lenObj.topSide.toPrecision(4) }} cms</button></li>
-            <li><button >Full Length: {{ lenObj.fullLen.toPrecision(4) }} cms</button></li>
-            <li><button >Full Height: {{ lenObj.fullHgt.toPrecision(4) }} cms</button></li>
+            <li><button @click="changeMode('pixPerInch')" :style="metreMode == 'pixPerInch' ? 'background-color: red;' : ''">Reference Obj. Len: {{ REF_OBJ_LEN }} cms</button></li>
+            <li><button @click="changeMode('leftSide')" :style="metreMode == 'leftSide' ? 'background-color: orange;' : ''">Left Side Length: {{ lenObj.leftSide.toPrecision(4) }} cms</button></li>
+            <li><button @click="changeMode('rightSide')" :style="metreMode == 'rightSide' ? 'background-color: yellow;' : ''">Right Side Length: {{ lenObj.rightSide.toPrecision(4) }} cms</button></li>
+            <li><button @click="changeMode('topSide')" :style="metreMode == 'topSide' ? 'background-color: green;' : ''">Top Side Length: {{ lenObj.topSide.toPrecision(4) }} cms</button></li>
+            <li><button @click="changeMode('fullLen')" :style="metreMode == 'fullLen' ? 'background-color: blue;' : ''">Full Length: {{ lenObj.fullLen.toPrecision(4) }} cms</button></li>
+            <li><button @click="changeMode('fullHgt')" :style="metreMode == 'fullHgt' ? 'background-color: purple;' : ''">Full Height: {{ lenObj.fullHgt.toPrecision(4) }} cms</button></li>
         </ul>
-        <button class="submit" @click="submitData">Send Data</button>
-        <button class="submit" @click="clearData">Clear Data</button>
+        <div class="submit">
+            <button @click="submitData">Send Data</button>
+            <button @click="clearData">Clear Data</button>
+        </div>
     </div>
 </template>
 
 <style scoped>
-div {
+.main {
     height: 100vh;
     display: flex;
     justify-content: center;
@@ -166,11 +183,12 @@ div {
 }
 
 .submit {
+    width: 20vw;
+    height: 10vh;
     position: fixed;
     top: 10rem;
     font-size: 3rem;
-    width: auto;
-    
+    display: flex;
 }
 
 li {
@@ -181,4 +199,5 @@ button {
     width: 100%;
     text-align: center;
 }
+
 </style>
