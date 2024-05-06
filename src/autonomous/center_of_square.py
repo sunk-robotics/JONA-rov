@@ -1,3 +1,5 @@
+# TODO - Filter out contours by size (exclude contours that are too big or too small),
+# maximum perimeter to area ratio, and maybe by shape
 import cv2
 import numpy as np
 from scipy.interpolate import splprep, splev
