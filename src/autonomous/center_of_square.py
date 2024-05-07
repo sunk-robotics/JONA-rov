@@ -172,7 +172,7 @@ def main():
     #  vc = cv2.VideoCapture(0)
 
     # problem images: 5, 8, 9, 12
-    img = cv2.imread("coral_images/red_square1.png")
+    img = cv2.imread("coral_images/red_square21.png")
 
     x_coord, y_coord = center_of_red(img)
     if x_coord is not None and y_coord is not None:
