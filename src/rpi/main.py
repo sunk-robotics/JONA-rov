@@ -359,7 +359,7 @@ async def main_server():
             else:
                 is_autonomous = True
                 ImageHandler.start_listening()
-                coral_transplanter = CoralTransplanter(depth)
+                coral_transplanter = CoralTransplanter(depth, yaw)
                 print("Autonomous mode enabled!")
 
         prev_depth_anchor_toggle = depth_anchor_toggle

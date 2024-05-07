@@ -6,6 +6,8 @@ import numpy as np
 from sklearn.linear_model import LinearRegression
 import time
 import websockets
+import math
+from scipy.interpolate import splprep, splev
 
 
 class WSServer:
@@ -71,7 +73,7 @@ class ImageHandler:
 
 
 class CoralTransplanter:
-    def __init__(self, pool_floor_depth: float):
+    def __init__(self, pool_floor_depth: float, yaw_angle: int):
         # the red square is at a height of about 32 cm above the pool floor
         self.SQUARE_HEIGHT = 0.32
         # the ROV should be 75 cm above the pool floor when searching for the square
@@ -148,8 +150,9 @@ class CoralTransplanter:
 
         print(self.current_step)
         if self.current_step == CoralStep.STARTING:
-            self.depth_pid.update_set_point(self.locating_depth)
-            print(f"Locating Depth: {self.locating_depth}")
+            #  self.depth_pid.update_set_point(self.locating_depth)
+            self.depth_pid.update_set_point(self.moving_depth)
+            #  print(f"Locating Depth: {self.locating_depth}")
             # keep the ROV's yaw locked
             self.yaw_pid.update_set_point(yaw)
             self.current_step = CoralStep.MOVING_UP
@@ -162,7 +165,8 @@ class CoralTransplanter:
             EPSILON = 0.01
             # move on to the next step if the ROV's height is within 1 cm of the target
             if abs(self.locating_depth - depth) <= EPSILON:
-                self.current_step = CoralStep.LOCATING_SQUARE
+                #  self.current_step = CoralStep.LOCATING_SQUARE
+                self.current_step = CoralStep.APPROACHING_SQUARE
                 print("Moving on Next Step: Locating Square")
         # step 2 is to locate the red square, or rotate until the red square is found
         # NOTE: if the ROV can't find the square, it will just keep rotating in circles
@@ -244,7 +248,9 @@ class CoralTransplanter:
             # to prevent the algorithm from latching onto some random red object
 
             if x_coord is not None and y_coord is not None:
-                self.prev_square_coords = [(x_coord, y_coord, time.time())]
+                #  self.prev_square_coords = [(x_coord, y_coord, time.time())]
+                self.prev_square_coords.append((x_coord, y_coord, time.time()))
+
                 self.current_step == CoralStep.ARRIVING_AT_SQUARE
                 print("Moving on Next Step: Arriving at Square")
 
@@ -270,6 +276,20 @@ class CoralTransplanter:
                 self.depth_pid.update_set_point(self.square_depth)
                 self.current_step = CoralStep.MOVING_BLINDLY
                 print("Moving on Next Step: Moving Blindly")
+            # if the square is just momentarily invisible, estimate its location
+            else:
+                prev_x_coords = np.array(
+                    [c[0] for c in self.prev_square_coords]
+                ).reshape((-1, 1))
+                prev_times = [c[2] for c in self.prev_square_coords]
+                print(f"X Coords: {prev_x_coords}")
+                print(f"Times: {prev_times}")
+                # performs a linear regression on the data to approximate a function
+                # for the x coordinate given a time
+                model = LinearRegression().fit(prev_x_coords, prev_times)
+                # estimates the x coord given the current time
+                approx_x_coord = model.coef_ * time.time() + model.intercept_
+                yaw_velocity = self.square_x_pid.compute(approx_x_coord)
 
         # after the red square is no longer visible, the ROV should continue moving
         # so that the coral sample aligns with the square
@@ -323,6 +343,78 @@ class CoralStep(Enum):
     FINISHED = 9
 
 
+# Smooth a contour and make it solid
+def smooth_contour(contour: np.ndarray) -> np.ndarray:
+    x, y = contour.T
+    x = x.tolist()[0]
+    y = y.tolist()[0]
+    tck, u = splprep([x, y], u=None, s=1.0, per=1)
+    u_new = np.linspace(u.min(), u.max(), 100)
+    x_new, y_new = splev(u_new, tck, der=0)
+    res_array = [[[int(i[0]), int(i[1])]] for i in zip(x_new, y_new)]
+    return np.asarray(res_array, dtype=np.int32)
+
+
+# Remove the horkfook from the image, which often interferes with the image
+# segmentation algorithm. Image must be HSV (Hue, Saturation, Value).
+def filter_out_hork(img: np.ndarray) -> np.ndarray:
+    lower_orange = np.array([13, 10, 10])
+    upper_orange = np.array([35, 255, 255])
+    orange_mask = cv2.inRange(img, lower_orange, upper_orange)
+    # turn all parts of the image that aren't orange into black
+    orange_img = cv2.bitwise_and(img, img, mask=orange_mask)
+    gray_img = cv2.split(orange_img)[2]
+    ok, thresh = cv2.threshold(gray_img, 1, 255, cv2.THRESH_BINARY)
+    kernel = np.ones((5, 5), np.uint8)
+    thresh = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, kernel, iterations=1)
+
+    # find the contours of the two hooks
+    contours, hierarchy = cv2.findContours(
+        thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE
+    )
+    hook_contours = sorted(contours, key=cv2.contourArea, reverse=True)[0:2]
+    if len(hook_contours) < 2:
+        print("Unable to filter out hork!")
+        return img
+    smoothened_contours = [
+        smooth_contour(hook_contours[0]),
+        smooth_contour(hook_contours[1]),
+    ]
+
+    mask = np.zeros_like(thresh)
+    cv2.drawContours(mask, smoothened_contours, -1, 255, -1)
+    # dilate the mask to remove the pixels around the edges of the hooks that
+    # like to cause problems
+    kernel = np.ones((5, 5), np.uint8)
+    mask = cv2.dilate(mask, kernel, iterations=2)
+    cv2.bitwise_not(mask, mask)
+
+    return cv2.bitwise_and(img, img, mask=mask)
+
+
+def filter_contours(contours: np.ndarray, iter_num: int) -> bool:
+    filtered_contours = []
+    for contour in contours:
+        area = cv2.contourArea(contour)
+        _, _, width, height = cv2.boundingRect(contour)
+        aspect_ratio = width / height if height != 0 else math.inf
+
+        hull = cv2.convexHull(contour)
+        hull_area = cv2.contourArea(hull)
+
+        solidity = area / hull_area if hull_area != 0 else math.inf
+
+        if (
+            area > 100 / (iter_num + 1)
+            and area < 10_000 / (iter_num + 1)
+            and aspect_ratio > 0.8
+            and solidity > 0.5
+        ):
+            filtered_contours.append(contour)
+
+    return filtered_contours
+
+
 # find the x and y coordinates of the center of a red object in the image
 def center_of_red(img: np.ndarray) -> (int, int):
     if img is None:
@@ -331,50 +423,73 @@ def center_of_red(img: np.ndarray) -> (int, int):
     # blurring helps reduce noise that might confuse the algorithm
     img_blur = cv2.GaussianBlur(img, (9, 9), 0)
 
+    # crop out part of the top, left, and right sides of the image to remove
+    # interference from reflections and other irrelevant parts of the image
+    img_width = img.shape[1]
+    img_height = img.shape[0]
+    mask = np.zeros(img.shape[:2], dtype="uint8")
+
+    cv2.rectangle(
+        mask,
+        (int(img_width / 5), int(img_height / 4)),
+        (int(img_width * (4 / 5)), img_height),
+        255,
+        -1,
+    )
+    cropped_img = cv2.bitwise_and(img_blur, img_blur, mask=mask)
+
     # converting to HSV (Hue, Saturation, Value) makes it easier to identify a range
     # of possible red values
-    img_hsv = cv2.cvtColor(img_blur, cv2.COLOR_BGR2HSV)
+    img_hsv = cv2.cvtColor(cropped_img, cv2.COLOR_BGR2HSV)
 
-    #  lower_red1 = np.array([0, 80, 80])
-    #  upper_red1 = np.array([10, 255, 255])
+    largest_contour = None
+    # red light attenuates very quickly underwater, so the farther the ROV is
+    # away from the square, the grayer/browner the square becomes, so gradually
+    # increase the range of colors until the square can be found
+    for i in range(0, 7):
+        filter_img = filter_out_hork(img_hsv) if i > 3 else img_hsv
+        lower_red = np.array([0, 10, 10])
+        upper_red = np.array([i * 5 + 10, 255, 150])
+        red_mask = cv2.inRange(filter_img, lower_red, upper_red)
 
-    #  lower_red2 = np.array([170, 80, 80])
-    #  upper_red2 = np.array([180, 255, 255])
+        # turn all parts of the image that aren't red into black
+        red_img = cv2.bitwise_and(filter_img, filter_img, mask=red_mask)
 
-    #  red_mask1 = cv2.inRange(img_hsv, lower_red1, upper_red1)
-    #  red_mask2 = cv2.inRange(img_hsv, lower_red2, upper_red2)
+        # turn the image into a binary (black and white) image, where the white parts
+        # represent anything red, and the black parts represent anything not red
+        gray_img = cv2.split(red_img)[2]
+        _, thresh = cv2.threshold(gray_img, 1, 255, cv2.THRESH_BINARY)
 
-    #  red_mask = red_mask1 + red_mask2
+        contours, _ = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
-    lower_red = np.array([0, 10, 10])
-    upper_red = np.array([20, 255, 150])
-    red_mask = cv2.inRange(img_hsv, lower_red, upper_red)
+        #  for contour in contours:
+        #      area = cv2.contourArea(contour)
+        #      print(f"Contour Area: {area}")
 
-    # turn all parts of the image that aren't red into black
-    red_img = cv2.cvtColor(
-        cv2.bitwise_and(img_hsv, img_hsv, mask=red_mask), cv2.COLOR_HSV2BGR
-    )
+        #      x, y, w, h = cv2.boundingRect(contour)
+        #      aspect_ratio = w / h if h != 0 else math.inf
+        #      print(f"Aspect Ratio: {aspect_ratio}")
 
-    WSServer.frame = bytearray(cv2.imencode(".jpg", red_img)[1])
+        #      hull = cv2.convexHull(contour)
+        #      hull_area = cv2.contourArea(hull)
 
-    # turn the image into a binary (black and white) image, where the white parts
-    # represent anything red, and the black parts represent anything not red
-    gray_img = cv2.cvtColor(red_img, cv2.COLOR_BGR2GRAY)
-    ok, thresh = cv2.threshold(gray_img, 1, 255, cv2.THRESH_BINARY)
+        #      solidity = area / hull_area if hull_area != 0 else math.inf
 
-    contours, hierarchy = cv2.findContours(
-        thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE
-    )
+        #      print(f"Solidity: {solidity}")
 
-    if len(contours) <= 0:
+        # filter out any contours that don't match the shape of the square
+        filtered_contours = filter_contours(contours, i)
+
+        if len(filtered_contours) > 0:
+            largest_contour = max(filtered_contours, key=cv2.contourArea)
+            break
+
+    if largest_contour is None:
         return None, None
 
-    largest_contour = max(contours, key=cv2.contourArea)
-    print(f"Contour Area: {cv2.contourArea(largest_contour)}")
-    if cv2.contourArea(largest_contour) < 100:
-        return None, None
     moment = cv2.moments(largest_contour)
     if moment["m00"] == 0:
+        print("shit")
         return None, None
 
     x_coord = int(moment["m10"] / moment["m00"])
@@ -433,7 +548,6 @@ def find_corners(image):
     red_img = cv2.cvtColor(
         cv2.bitwise_and(img_hsv, img_hsv, mask=red_mask), cv2.COLOR_HSV2BGR
     )
-    cv2.imshow("Red", red_img)
 
     gray = cv2.cvtColor(red_img, cv2.COLOR_BGR2GRAY)
     # filter to remove noise from the edges that can result in the contours becoming

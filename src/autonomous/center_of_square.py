@@ -1,6 +1,7 @@
 # TODO - Filter out contours by size (exclude contours that are too big or too small),
 # maximum perimeter to area ratio, and maybe by shape
 import cv2
+import math
 import numpy as np
 from scipy.interpolate import splprep, splev
 
@@ -56,6 +57,29 @@ def filter_out_hork(img: np.ndarray) -> np.ndarray:
     return cv2.bitwise_and(img, img, mask=mask)
 
 
+def filter_contours(contours: np.ndarray, iter_num: int) -> bool:
+    filtered_contours = []
+    for contour in contours:
+        area = cv2.contourArea(contour)
+        _, _, width, height = cv2.boundingRect(contour)
+        aspect_ratio = width / height if height != 0 else math.inf
+
+        hull = cv2.convexHull(contour)
+        hull_area = cv2.contourArea(hull)
+
+        solidity = area / hull_area if hull_area != 0 else math.inf
+
+        if (
+            area > 100 / (iter_num + 1)
+            and area < 10_000 / (iter_num + 1)
+            and aspect_ratio > 0.8
+            and solidity > 0.5
+        ):
+            filtered_contours.append(contour)
+
+    return filtered_contours
+
+
 # find the x and y coordinates of the center of a red object in the image
 def center_of_red(img: np.ndarray) -> (int, int):
     if img is None:
@@ -82,23 +106,6 @@ def center_of_red(img: np.ndarray) -> (int, int):
     # converting to HSV (Hue, Saturation, Value) makes it easier to identify a range
     # of possibcv2.imshow('mask', mask)le red values
     img_hsv = cv2.cvtColor(cropped_img, cv2.COLOR_BGR2HSV)
-    #  horkless_img = filter_out_hork(img_hsv)
-
-    #  (h, s, v) = cv2.split(img_hsv)
-    #  s = s * 2
-    #  s = np.clip(s, 0, 255)
-    #  img_hsv = cv2.merge([h, s, v])
-
-    #  lower_red1 = np.array([0, 80, 80])
-    #  upper_red1 = np.array([10, 255, 255])
-
-    #  lower_red2 = np.array([170, 80, 80])
-    #  upper_red2 = np.array([180, 255, 255])
-
-    #  red_mask1 = cv2.inRange(img_hsv, lower_red1, upper_red1)
-    #  red_mask2 = cv2.inRange(img_hsv, lower_red2, upper_red2)
-
-    #  red_mask = red_mask1 + red_mask2
 
     largest_contour = None
     # red light attenuates very quickly underwater, so the farther the ROV is
@@ -126,14 +133,26 @@ def center_of_red(img: np.ndarray) -> (int, int):
             thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE
         )
 
-        if (
-            len(contours) > 0
-            and cv2.contourArea(max(contours, key=cv2.contourArea)) > 50
-        ):
-            largest_contour = max(contours, key=cv2.contourArea)
-            print(
-                f"Ratio of Perimeter to Area: {cv2.arcLength(largest_contour, True) / cv2.contourArea(largest_contour)}"
-            )
+        for contour in contours:
+            area = cv2.contourArea(contour)
+            print(f"Contour Area: {area}")
+
+            x, y, w, h = cv2.boundingRect(contour)
+            aspect_ratio = w / h if h != 0 else math.inf
+            print(f"Aspect Ratio: {aspect_ratio}")
+
+            hull = cv2.convexHull(contour)
+            hull_area = cv2.contourArea(hull)
+
+            solidity = area / hull_area if hull_area != 0 else math.inf
+
+            print(f"Solidity: {solidity}")
+
+        # filter out any contours that don't match the shape of the square
+        filtered_contours = filter_contours(contours, i)
+
+        if len(filtered_contours) > 0:
+            largest_contour = max(filtered_contours, key=cv2.contourArea)
             break
 
     if largest_contour is None:
@@ -153,7 +172,7 @@ def main():
     #  vc = cv2.VideoCapture(0)
 
     # problem images: 5, 8, 9, 12
-    img = cv2.imread("coral_images/red_square9.png")
+    img = cv2.imread("coral_images/red_square1.png")
 
     x_coord, y_coord = center_of_red(img)
     if x_coord is not None and y_coord is not None:
