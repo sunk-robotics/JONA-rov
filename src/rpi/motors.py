@@ -7,10 +7,10 @@ import time
 class Motors:
     def __init__(self):
         # After calibrating with the oscilloscope, the correct reference clock
-        # speed for the particular PCA9685 should be 24.5 MHz, rather than the
+        # speed for the particular PCA9685 should be 24.725 MHz, rather than the
         # standard 25 MHz. If the motors don't work for some reason, check the
         # reference clock.
-        self.kit = ServoKit(channels=16, reference_clock_speed=24_500_000)
+        self.kit = ServoKit(channels=16, reference_clock_speed=24_725_000)
         self.num_motors = 8
         # a table that maps the motor number to the correct channel on the PWM
         # controller
