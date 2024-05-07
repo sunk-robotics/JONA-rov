@@ -324,10 +324,19 @@ class ReqHandler(BaseHTTPRequestHandler):
         coral_restoration_site = make_coral_restoration_site(left, right, top)
         coral_restoration_site.save(output_file)
         print(f"Outputted model to {output_file}")
-        self.send_response(200)
-    
-    def end_headers(self) -> None:
+       
+        self.send_response(200, "OK")
+        self.send_header("Content-type", "text/html")
         self.send_header('Access-Control-Allow-Origin', '*')
+        self.end_headers()
+        self.wfile.write(b"successfully created a model")
+        self.wfile.flush()
+
+        return
+    
+    def do_OPTIONS(self):
+        pass
+    
 
 if __name__ == "__main__":
     print("hello")
