@@ -9,14 +9,14 @@ export const useImageStore = defineStore('image', () => {
     }
 
     function get(): VideoFrame {
-        return image.value
+        return image.value as VideoFrame
     }
 
     function clear(): void { 
         image.value = null;
     }
 
-    return { image, set, get }
+    return { image, set, get, clear }
 })
 
 export const useCounterStore = defineStore('counter', () => {

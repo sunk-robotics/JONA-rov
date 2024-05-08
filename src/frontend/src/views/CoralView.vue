@@ -2,6 +2,8 @@
     import * as Three from 'three';
     import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
     import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { ref } from 'vue';
+import { useMeasurementStore } from '@/stores/measurements';
 
     const scene = new Three.Scene();
     const renderer = new Three.WebGLRenderer( {antialias: true} )
@@ -114,7 +116,9 @@
     animate();
 
     function Rerender() {
-        if (measure.height == 0 && measure.width == 0) return;
+        console.log("rerendering", length.value);
+        
+        if (length.value == 0) return;
 
         scene.traverse((child) => {
             if (child instanceof Three.Mesh) {
@@ -127,26 +131,37 @@
                     child.visible = true
                 }
             })
+
+            scene.rotateX(Math.PI / 3)
+            scene.rotateY(Math.PI / 5)
+            render.value = true
         }, 1200)
     }
 
-    let measure = {
-        height: 0,
-        width: 0
-    }
+    
+    let length = ref<undefined | number>(undefined);
+    let render = ref(false)
+    const measurements = useMeasurementStore().getAll();
+
+
 </script>
 
 <template>
-    <div>
+    <div class="inputs">
         <button @click="Rerender">Rerender</button>
-        <input type="text" pattern="[0-9]*" placeholder="height" v-bind="measure.height">
-        <input type="text" pattern="[0-9]*" placeholder="height" v-bind="measure.width">
-
+        <input type="text" placeholder="length" v-model="length">
+    </div>
+    <div v-if="render" class="renderData">
+        <p>left side: {{ measurements.leftSide }}</p>
+        <p>right side: {{ measurements.rightSide }}</p>
+        <p>top side: {{ measurements.topSide }}</p>
+        <p>full height: {{ measurements.fullHgt }}</p>
+        <p>full length: {{ measurements.fullLen }}</p>
     </div>
 </template>
 
 <style scoped>
-    div {
+    .inputs {
         display: grid;
         grid-auto-flow: row;
         z-index: 10;
@@ -156,8 +171,17 @@
         right: 2rem;
     }
 
-    div > * {
+    .inputs > * {
         text-align: center;
         padding: 1rem;
+    }
+
+    .renderData {
+        position: fixed;
+        z-index: 10;
+        bottom: 2rem;
+        right: 2rem;
+        background-color: whitesmoke;
+        padding: 2rem;
     }
 </style>

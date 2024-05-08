@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
 import { useImageStore } from "@/stores/image"
+import { type Measurements, useMeasurementStore } from "@/stores/measurements"
 import axios, { AxiosError } from 'axios';
 import router from '@/router';
+import type { Ref } from 'vue';
 
 axios.defaults.withCredentials = true;
 
@@ -17,17 +19,17 @@ onMounted(() => {
         return
     }
     ctx.drawImage(imageStore.get(), 0, 0, 854, 480);
-    imageStore.set(null);
+    imageStore.clear();
 
 })
 
-
+let measureStore = useMeasurementStore()
 
 // length of the reference object in centimeters
 const REF_OBJ_LEN = 32;
 
 type Fields = "pixPerInch" | "leftSide" | "rightSide" | "topSide" | "fullLen" | "fullHgt" | null
-let lenObj = ref({
+let lenObj: Ref<Measurements> = ref({
     pixPerInch: 0,
     leftSide: 0,
     rightSide: 0,
@@ -101,10 +103,11 @@ function changeMode(mode: Fields) {
 async function submitData() {
     const { leftSide, rightSide, topSide } = lenObj.value
     
-
-    if (leftSide == 0 || rightSide == 0 || topSide == 0) {
+    if (Object.values(lenObj.value).includes(0)) {
         return
     }
+
+    measureStore.setAll(lenObj.value)
     console.log("sending data...");
     
     const url = `http://127.0.0.1:3000/left=${Math.round(leftSide) * 10}&right=${Math.round(rightSide) * 10}&top=${Math.round(topSide) * 10}`
