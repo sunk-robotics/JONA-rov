@@ -96,7 +96,7 @@ def center_of_red(img: np.ndarray) -> (int, int):
 
     cv2.rectangle(
         mask,
-        (int(img_width / 5), int(img_height / 4)),
+        (0, int(img_height / 4)),
         (int(img_width * (4 / 5)), img_height),
         255,
         -1,
@@ -172,7 +172,7 @@ def main():
     #  vc = cv2.VideoCapture(0)
 
     # problem images: 5, 8, 9, 12
-    img = cv2.imread("coral_images/red_square21.png")
+    img = cv2.imread("coral_images/red_square22.jpg")
 
     x_coord, y_coord = center_of_red(img)
     if x_coord is not None and y_coord is not None:

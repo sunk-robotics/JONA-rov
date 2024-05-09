@@ -271,6 +271,7 @@ class CoralTransplanter:
             x_coord, y_coord = center_of_red(img)
             if x_coord is not None and y_coord is not None:
                 print(f"Coords: ({x_coord}, {y_coord})")
+                center_of_red(img, save_image=True)
                 self.prev_square_coords.append((x_coord, y_coord, time.time()))
                 #  self.square_x_pid.update_set_point(img_center_x)
                 yaw_velocity = self.square_x_pid.compute(x_coord)
@@ -423,10 +424,12 @@ def filter_contours(contours: np.ndarray, iter_num: int) -> bool:
 
 
 # find the x and y coordinates of the center of a red object in the image
-def center_of_red(img: np.ndarray) -> (int, int):
+def center_of_red(img: np.ndarray, save_image=False) -> (int, int):
     if img is None:
         return None, None
 
+    if save_image:
+        cv2.imwrite(f"./images/{time.time()}_img.jpg", img)
     # blurring helps reduce noise that might confuse the algorithm
     img_blur = cv2.GaussianBlur(img, (9, 9), 0)
 
@@ -438,7 +441,7 @@ def center_of_red(img: np.ndarray) -> (int, int):
 
     cv2.rectangle(
         mask,
-        (int(img_width / 5), int(img_height / 4)),
+        (0, int(img_height / 4)),
         (int(img_width * (4 / 5)), img_height),
         255,
         -1,
@@ -461,6 +464,8 @@ def center_of_red(img: np.ndarray) -> (int, int):
 
         # turn all parts of the image that aren't red into black
         red_img = cv2.bitwise_and(filter_img, filter_img, mask=red_mask)
+        if save_image:
+            cv2.imwrite(f"./images/{time.time()}_red_img.jpg", red_img)
 
         # turn the image into a binary (black and white) image, where the white parts
         # represent anything red, and the black parts represent anything not red

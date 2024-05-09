@@ -263,6 +263,7 @@ async def main_server():
             ) = coral_transplanter.next_step(depth, yaw, roll, pitch)
             if is_finished:
                 is_autonomous = False
+                ImageHandler.stop_listening()
                 print("Autonomous task completed!")
 
         # run the motors!
@@ -355,6 +356,7 @@ async def main_server():
         if autonomous_toggle and not prev_autonomous_toggle:
             if is_autonomous:
                 is_autonomous = False
+                ImageHandler.stop_listening()
                 print("Autonomous mode disabled!")
             else:
                 is_autonomous = True
