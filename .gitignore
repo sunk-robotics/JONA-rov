@@ -10,3 +10,4 @@ src/control/bin/
 src/control/lib/
 src/browser-gltf/node_modules/
 src/coral-modeling/result.*
+src/frontend/public/result.glb
