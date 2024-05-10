@@ -11,6 +11,7 @@ from cadquery import (
 
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import parse_qs
+import subprocess
 
 
 def make_left_pipes(length: float) -> Workplane:
@@ -318,11 +319,19 @@ class ReqHandler(BaseHTTPRequestHandler):
         right = int(parsed_url["right"][0])
         top = int(parsed_url["top"][0])
 
-        output_file = "../frontend/public/result.glb"
+        #  output_file = "../frontend/public/result.glb"
+        output_file = "result.glb"
         print("Creating model...")
         coral_restoration_site = make_coral_restoration_site(left, right, top)
         coral_restoration_site.save(output_file)
         print(f"Outputted model to {output_file}")
+
+        subprocess.run(
+            f"scp {output_file} sunk@192.168.1.1:/var/jona-server/public/{output_file}",
+            shell=True,
+            executable="/bin/bash",
+        )
+        print("Sent file to JONA-rov frontend")
 
         self.send_response(200, "OK")
         self.send_header("Content-type", "text/html")
