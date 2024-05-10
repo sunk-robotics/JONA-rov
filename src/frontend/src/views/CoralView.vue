@@ -116,7 +116,7 @@ import { useMeasurementStore } from '@/stores/measurements';
     animate();
 
     function Rerender() {
-        console.log("rerendering", length.value);
+        console.log("Scaling", length.value);
         
         if (length.value == 0) return;
 
@@ -148,15 +148,11 @@ import { useMeasurementStore } from '@/stores/measurements';
 
 <template>
     <div class="inputs">
-        <button @click="Rerender">Rerender</button>
-        <input type="text" placeholder="length" v-model="length">
+        <button @click="Rerender">Scale</button>
+        <input type="text" placeholder="length (cm)" v-model="length">
     </div>
     <div v-if="render" class="renderData">
-        <p>left side: {{ measurements.leftSide }}</p>
-        <p>right side: {{ measurements.rightSide }}</p>
-        <p>top side: {{ measurements.topSide }}</p>
-        <p>full height: {{ measurements.fullHgt }}</p>
-        <p>full length: {{ measurements.fullLen }}</p>
+        <p>Scaled Height: {{ (measurements.fullHgt + 22).toFixed(1) }} cm</p>
     </div>
 </template>
 

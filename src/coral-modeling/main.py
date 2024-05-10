@@ -314,34 +314,31 @@ class ReqHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         parsed_url = parse_qs(self.path)
         print(parsed_url)
-        left = int(parsed_url['/left'][0])
-        right = int(parsed_url['right'][0])
-        top = int(parsed_url['top'][0])
-
+        left = int(parsed_url["/left"][0])
+        right = int(parsed_url["right"][0])
+        top = int(parsed_url["top"][0])
 
         output_file = "../frontend/public/result.glb"
         print("Creating model...")
         coral_restoration_site = make_coral_restoration_site(left, right, top)
         coral_restoration_site.save(output_file)
         print(f"Outputted model to {output_file}")
-       
+
         self.send_response(200, "OK")
         self.send_header("Content-type", "text/html")
-        self.send_header('Access-Control-Allow-Origin', '*')
+        self.send_header("Access-Control-Allow-Origin", "*")
         self.end_headers()
         self.wfile.write(b"successfully created a model")
         self.wfile.flush()
 
         return
-    
+
     def do_OPTIONS(self):
         pass
-    
+
 
 if __name__ == "__main__":
-    print("hello")
+    print("Starting server...")
     addr = ("127.0.0.1", 3000)
     httpd = HTTPServer(addr, ReqHandler)
     httpd.serve_forever()
-
-
