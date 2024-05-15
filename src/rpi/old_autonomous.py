@@ -1,6 +1,7 @@
+
 import asyncio
 import cv2
-from enum import auto, Enum
+from enum import Enum
 from pid import PID, RotationalPID
 import numpy as np
 from sklearn.linear_model import LinearRegression
@@ -123,7 +124,7 @@ class CoralTransplanter:
             proportional_gain=0.1, integral_gain=0, derivative_gain=0
         )
 
-        self.current_step = CoralState.STARTING
+        self.current_step = CoralStep.STARTING
 
     def next_step(
         self, depth: float, yaw: float, roll: float, pitch: float
@@ -153,15 +154,15 @@ class CoralTransplanter:
         print(self.current_step)
         print(f"Yaw Set Point: {self.yaw_pid.set_point}")
         print(f"Yaw: {yaw}")
-        if self.current_step == CoralState.STARTING:
+        if self.current_step == CoralStep.STARTING:
             self.depth_pid.update_set_point(self.moving_depth)
             print(f"Moving Depth: {self.moving_depth}")
             # keep the ROV's yaw locked
             self.yaw_pid.update_set_point(yaw)
-            self.current_step = CoralState.MOVING_UP
+            self.current_step = CoralStep.MOVING_UP
             print("Moving on Next Step: Moving Up")
         # step 1 is to move up to a few centimeters above the red square
-        elif self.current_step == CoralState.MOVING_UP:
+        elif self.current_step == CoralStep.MOVING_UP:
             z_velocity = self.depth_pid.compute(depth)
             yaw_velocity = self.yaw_pid.compute(yaw)
             # the ROV should be within 1 cm of the target depth
@@ -169,18 +170,18 @@ class CoralTransplanter:
             # move on to the next step if the ROV's height is within 1 cm of the target
             #  if abs(self.locating_depth - depth) <= EPSILON:
             if abs(self.moving_depth - depth) <= EPSILON:
-                #  self.current_step = CoralState.LOCATING_SQUARE
-                self.current_step = CoralState.APPROACHING_SQUARE
+                #  self.current_step = CoralStep.LOCATING_SQUARE
+                self.current_step = CoralStep.APPROACHING_SQUARE
                 print("Moving on Next Step: Approaching Square")
         #          # step 2 is to locate the red square, or rotate until the red square is found
         #  # NOTE: if the ROV can't find the square, it will just keep rotating in circles
-        #  elif self.current_step == CoralState.LOCATING_SQUARE:
+        #  elif self.current_step == CoralStep.LOCATING_SQUARE:
         #      x_coord, y_coord = center_of_red(img)
         #      if x_coord is not None and y_coord is not None:
         #          yaw_velocity = 0
         #          self.prev_square_coords.append((x_coord, y_coord, time.time()))
         #          self.square_x_pid.update_set_point(img_center_x)
-        #          self.current_step = CoralState.CENTERING_SQUARE
+        #          self.current_step = CoralStep.CENTERING_SQUARE
         #          print(f"Found square at ({x_coord}, {y_coord})!")
         #          print(f"Prev Square Coords: {self.prev_square_coords}")
         #          print("Moving on Next Step: Centering Square")
@@ -188,7 +189,7 @@ class CoralTransplanter:
         #          yaw_velocity = 0.5
         #  # step 3 is to rotate until the center of the red square is in the horizontal
         #  # center of the ROV's vision and identify the angle of rotation
-        #  elif self.current_step == CoralState.CENTERING_SQUARE:
+        #  elif self.current_step == CoralStep.CENTERING_SQUARE:
         #      # the square should be within 10 pixels of the target location on screen
         #      EPSILON = 10
         #      # we're only focusing on the x_coord
@@ -201,7 +202,7 @@ class CoralTransplanter:
         #              self.yaw_pid.update_set_point(yaw)
         #              self.depth_pid.update_set_point(self.moving_depth)
         #              self.prev_square_coords = []
-        #              self.current_step = CoralState.MOVING_DOWN
+        #              self.current_step = CoralStep.MOVING_DOWN
         #              print("Moving on Next Step: Moving Down")
         #      # it's possible the red square could become obscured by the gripper
         #      # in that case, estimate it's position based on it's previous positions
@@ -230,7 +231,7 @@ class CoralTransplanter:
         #              approx_x_coord = model.coef_ * time.time() + model.intercept_
         #              #  yaw_velocity = self.square_x_pid.compute(approx_x_coord)
         #  # step 4 is to move down a few centimeters above the depth of the red square
-        #  elif self.current_step == CoralState.MOVING_DOWN:
+        #  elif self.current_step == CoralStep.MOVING_DOWN:
         #      print("Moving down!")
         #      # the ROV should be within 1 cm of the target depth
         #      EPSILON = 0.01
@@ -239,10 +240,10 @@ class CoralTransplanter:
         #      yaw_velocity = self.yaw_pid.compute(yaw)
 
         #      if abs(target_depth - depth) <= EPSILON:
-        #          self.current_step = CoralState.APPROACHING_SQUARE
+        #          self.current_step = CoralStep.APPROACHING_SQUARE
         #  print("Moving on Next Step: Approaching Square")
         # step 2 is to approach the square blindly until the square comes into view
-        elif self.current_step == CoralState.APPROACHING_SQUARE:
+        elif self.current_step == CoralStep.APPROACHING_SQUARE:
             z_velocity = self.depth_pid.compute(depth)
             yaw_velocity = self.yaw_pid.compute(yaw)
             y_velocity = 0.2
@@ -255,12 +256,12 @@ class CoralTransplanter:
                 print("Found square!")
                 self.prev_square_coords = [(x_coord, y_coord, time.time())]
 
-                self.current_step = CoralState.VERIFYING_SQUARE
+                self.current_step = CoralStep.VERIFYING_SQUARE
                 #  self.square_x_pid.update_set_point(img_center_x)
                 print("Moving on Next Step: Verifying Square")
         # step 3 is to make sure the red square that the ROV detected is actually the
         # square
-        elif self.current_step == CoralState.VERIFYING_SQUARE:
+        elif self.current_step == CoralStep.VERIFYING_SQUARE:
             z_velocity = self.depth_pid.compute(depth)
             yaw_velocity = self.yaw_pid.compute(yaw)
             y_velocity = -0.1
@@ -286,24 +287,24 @@ class CoralTransplanter:
                 # bouncing around like a maniac
                 if square_displacement > 100:
                     self.verify_count = 0
-                    self.current_step = CoralState.APPROACHING_SQUARE
+                    self.current_step = CoralStep.APPROACHING_SQUARE
                 elif self.verify_count >= 10:
                     self.verify_count = 0
                     print("Verified!")
                     self.prev_square_coords = [(x_coord, y_coord, time.time())]
-                    self.current_step = CoralState.ARRIVING_AT_SQUARE
+                    self.current_step = CoralStep.ARRIVING_AT_SQUARE
                 else:
                     self.verify_count += 1
 
                 self.prev_square_coords.append((x_coord, y_coord, current_time))
             else:
                 self.verify_count = 0
-                self.current_step = CoralState.APPROACHING_SQUARE
+                self.current_step = CoralStep.APPROACHING_SQUARE
 
         # step 6 is to continue approaching the square, keeping the square centered
         # horizontally in the ROV's vision, until the square falls off the bottom of the
         # screen
-        elif self.current_step == CoralState.ARRIVING_AT_SQUARE:
+        elif self.current_step == CoralStep.ARRIVING_AT_SQUARE:
             EPSILON = 50
 
             z_velocity = self.depth_pid.compute(depth)
@@ -334,26 +335,26 @@ class CoralTransplanter:
                 #  predicted_y_coord = model.predict(time.time())
                 if predicted_y_coord > img_height - EPSILON:
                     self.start_time = time.time()
-                    self.current_step = CoralState.MOVING_BLINDLY
+                    self.current_step = CoralStep.MOVING_BLINDLY
 
             # if there haven't already been 10 recorded coordinates, go back and verify that the square exists
             else:
                 print("Where'd it go?")
-                self.current_step = CoralState.VERIFYING_SQUARE
+                self.current_step = CoralStep.VERIFYING_SQUARE
 
         # after the red square is no longer visible, the ROV should continue moving
         # so that the coral sample aligns with the square
-        elif self.current_step == CoralState.MOVING_BLINDLY:
+        elif self.current_step == CoralStep.MOVING_BLINDLY:
             z_velocity = self.depth_pid.compute(depth)
             y_velocity = 0.2
 
             if time.time() - self.start_time >= self.BLIND_MOVING_TIME:
                 self.start_time = time.time()
-                self.current_step = CoralState.SETTING_DOWN
+                self.current_step = CoralStep.SETTING_DOWN
                 print("Moving on Next Step: Setting Down")
 
         # step 8 is to set the coral head down on the red square
-        elif self.current_step == CoralState.SETTING_DOWN:
+        elif self.current_step == CoralStep.SETTING_DOWN:
             # the ROV should be within 1 cm of the target depth
             EPSILON = 1
             z_velocity = -0.5
@@ -364,7 +365,7 @@ class CoralTransplanter:
                 abs(self.square_depth - depth) <= EPSILON
                 or time.time() - self.start_time >= self.SETTING_DOWN_TIMEOUT
             ):
-                self.current_step = CoralState.FINISHED
+                self.current_step = CoralStep.FINISHED
                 print("Done!")
 
         return (
@@ -374,26 +375,32 @@ class CoralTransplanter:
             yaw_velocity,
             roll_velocity,
             pitch_velocity,
-            self.current_step == CoralState.FINISHED,
+            self.current_step == CoralStep.FINISHED,
         )
 
 
 # the steps in the process of transplanting the brain coral, broken down into an enum
 # for readability
-class CoralState(Enum):
-    # the steps in the algorithm
+#  class CoralStep(Enum):
+#      STARTING = 0
+#      MOVING_UP = 1
+#      LOCATING_SQUARE = 2
+#      CENTERING_SQUARE = 3
+#      MOVING_DOWN = 4
+#      APPROACHING_SQUARE = 5
+#      ARRIVING_AT_SQUARE = 6
+#      MOVING_BLINDLY = 7
+#      SETTING_DOWN = 8
+#      FINISHED = 9
+class CoralStep(Enum):
     STARTING = 0
     MOVING_UP = 1
-    ROTATING = 2
-    APPROACHING = 3
-    VERIFYING_SQUARE = 4
-    CENTERING_SQUARE = 5
-    ARRIVING_AT_SQUARE = 6
-    MOVING_BLINDLY = 7
-    SETTING_DOWN = 8
-    FINISHED = 9
-    # other states
-    FAILURE = auto()
+    APPROACHING_SQUARE = 2
+    VERIFYING_SQUARE = 3
+    ARRIVING_AT_SQUARE = 4
+    MOVING_BLINDLY = 5
+    SETTING_DOWN = 6
+    FINISHED = 7
 
 
 # Smooth a contour and make it solid
@@ -747,3 +754,4 @@ if __name__ == "__main__":
         main()
     except KeyboardInterrupt:
         exit()
+
