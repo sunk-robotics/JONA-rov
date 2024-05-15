@@ -4,13 +4,15 @@ import asyncio
 import autonomous
 from autonomous import ImageHandler, CoralTransplanter
 import board
+import cv2
+import json
 from motors import Motors
 from ms5837 import MS5837_02BA
-import json
-import websockets
-from ws_server import WSServer
 from pid import PID, RotationalPID
 from power_monitoring import PowerMonitor
+from time import time
+import websockets
+from ws_server import WSServer
 
 # how far the joystick needs to be moved before stabilization is temporarily
 # disabled (0..1)
@@ -93,6 +95,7 @@ async def main_server():
     prev_roll_velocity = 0
     prev_pitch_velocity = 0
 
+    ImageHandler.start_listening()
     print("Server started!")
     while True:
         joystick_data = WSServer.pump_joystick_data()
@@ -158,6 +161,7 @@ async def main_server():
             yaw_anchor_toggle = joystick_data["buttons"]["west"]
             motor_lock_toggle = joystick_data["buttons"]["start"]
             autonomous_toggle = joystick_data["buttons"]["select"]
+            photo_trigger = joystick_data["buttons"]["left_trigger"]
         else:
             x_velocity = 0
             y_velocity = 0
@@ -172,6 +176,7 @@ async def main_server():
             pitch_anchor_toggle = 0
             motor_lock_toggle = 0
             autonomous_toggle = 0
+            photo_trigger = 0
 
         # when the controller speed increases beyond 50% of the speed multiplier,
         # temporarily turn off any stabilization
@@ -265,6 +270,10 @@ async def main_server():
                 is_autonomous = False
                 ImageHandler.stop_listening()
                 print("Autonomous task completed!")
+
+        if photo_trigger:
+            img = ImageHandler.pump_image()
+            cv2.imwrite(f"{time()}.jpg", img)
 
         # run the motors!
         motors.drive_motors(

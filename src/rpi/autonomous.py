@@ -504,8 +504,6 @@ def center_of_red(img: np.ndarray, save_image=False) -> (int, int):
     if img is None:
         return None, None
 
-    if save_image:
-        cv2.imwrite(f"./images/{time()}_img.jpg", img)
     # blurring helps reduce noise that might confuse the algorithm
     img_blur = cv2.GaussianBlur(img, (9, 9), 0)
 
