@@ -267,17 +267,30 @@ class CoralTransplanter:
 
         # step 4 is to center the square in the ROV's vision
         elif self.current_step == CoralState.CENTERING_SQUARE:
+            EPSILON = 20
             z_velocity = self.depth_pid.compute(depth)
             
             x_coord, y_coord = center_of_red(img)
 
             if x_coord is not None and y_coord is not None:
+                self.estimating_timer.stop()
+                self.estimating_timer.reset()
                 self.prev_square_coords.append((x_coord, y_coord, time()))
                 yaw_velocity = self.square_x_pid.compute(x_coord)
+
+                if abs(img_center_x - x_coord) <= EPSILON:
+                    self.prev_square_coords = [
+                    ]
+                    print("Success!")
+                    #  self.current_step = CoralState.ARRIVING_AT_SQUARE
+                    self.current_step = CoralState.FINISHED
+
             # it's possible the square might be temporarily invisible,if there's enough
             # data points to work with, use a linear regression to estimate the position
             # of the square
             elif len(self.prev_square_coords) > 3 and self.estimating_timer.read() < 1:
+                if self.estimating_timer.stopped:
+                    self.estimating_timer.start()
                 prev_x_coords = np.array(
                     [c[0] for c in self.prev_square_coords]
                 ).reshape((-1, 1))

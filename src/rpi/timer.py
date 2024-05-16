@@ -23,6 +23,10 @@ class Timer:
         else:
             return self.elapsed_time
 
+    def reset(self):
+        self.elapsed_time = 0
+        self.start_time = 0
+
     def restart(self):
         self.elapsed_time = 0
         self.start_time = 0
