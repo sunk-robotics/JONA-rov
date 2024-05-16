@@ -2,7 +2,7 @@
 import adafruit_bno055
 import asyncio
 import autonomous
-from autonomous import ImageHandler, CoralTransplanter
+from autonomous import ImageHandler, CoralTransplanter, CoralReturn
 import board
 import cv2
 import json
@@ -264,16 +264,20 @@ async def main_server():
                 yaw_velocity,
                 roll_velocity,
                 pitch_velocity,
-                is_finished,
+                return_code,
             ) = coral_transplanter.next_step(depth, yaw, roll, pitch)
-            if is_finished:
+            if return_code == CoralReturn.FINISHED:
                 is_autonomous = False
                 ImageHandler.stop_listening()
                 print("Autonomous task completed!")
+            elif return_code == CoralReturn.FAILED:
+                is_autonomous = False
+                ImageHandler.stop_listening()
+                print("Autonomous task failed! ;-;")
 
         if photo_trigger:
             img = ImageHandler.pump_image()
-            cv2.imwrite(f"{time()}.jpg", img)
+            cv2.imwrite(f"test_images/{time()}.jpg", img)
 
         # run the motors!
         motors.drive_motors(
