@@ -1,5 +1,5 @@
 import numpy as np
-from math import atan2, acos, cos, hypot, sin
+from math import asin, atan2, acos, cos, degrees, hypot, sin
 
 
 # converts vector in cartesian coordinates (x, y, z) to spherical coordinates (r, θ, ϕ)
@@ -85,3 +85,26 @@ def rotate_vector_spherical(
     return cartesian_to_spherical(
         (rotated_vector[0], rotated_vector[1], rotated_vector[2])
     )
+
+
+def quaternion_to_euler(x, y, z, w):
+    """
+    Convert a quaternion into euler angles (roll, pitch, yaw)
+    roll is rotation around x in radians (counterclockwise)
+    pitch is rotation around y in radians (counterclockwise)
+    yaw is rotation around z in radians (counterclockwise)
+    """
+    t0 = +2.0 * (w * x + y * z)
+    t1 = +1.0 - 2.0 * (x * x + y * y)
+    pitch = atan2(t0, t1)
+
+    t2 = +2.0 * (w * y - z * x)
+    t2 = +1.0 if t2 > +1.0 else t2
+    t2 = -1.0 if t2 < -1.0 else t2
+    roll = asin(t2)
+
+    t3 = +2.0 * (w * z + x * y)
+    t4 = +1.0 - 2.0 * (y * y + z * z)
+    yaw = atan2(t3, t4)
+
+    return degrees(yaw), degrees(roll), degrees(pitch)  # in radians

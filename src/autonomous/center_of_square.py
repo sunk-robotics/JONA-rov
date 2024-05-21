@@ -85,6 +85,8 @@ def center_of_red(img: np.ndarray) -> (int, int):
     if img is None:
         return None, None
 
+    gray_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    cv2.imshow("Gray Image", gray_img)
     # blurring helps reduce noise that might confuse the algorithm
     img_blur = cv2.GaussianBlur(img, (9, 9), 0)
 
@@ -111,8 +113,8 @@ def center_of_red(img: np.ndarray) -> (int, int):
     # red light attenuates very quickly underwater, so the farther the ROV is
     # away from the square, the grayer/browner the square becomes, so gradually
     # increase the range of colors until the square can be found
-    for i in range(0, 7):
-        filter_img = filter_out_hork(img_hsv) if i > 3 else img_hsv
+    for i in range(0, 5):
+        filter_img = img_hsv
         lower_red = np.array([0, 10, 10])
         upper_red = np.array([i * 5 + 10, 255, 150])
         red_mask = cv2.inRange(filter_img, lower_red, upper_red)
@@ -163,6 +165,7 @@ def center_of_red(img: np.ndarray) -> (int, int):
         print("shit")
         return None, None
 
+
     x_coord = int(moment["m10"] / moment["m00"])
     y_coord = int(moment["m01"] / moment["m00"])
     return x_coord, y_coord
@@ -172,7 +175,7 @@ def main():
     #  vc = cv2.VideoCapture(0)
 
     # problem images: 5, 8, 9, 12
-    img = cv2.imread("coral_images/red_square1.png")
+    img = cv2.imread("training_images/1715891320.3434846.jpg")
 
     x_coord, y_coord = center_of_red(img)
     if x_coord is not None and y_coord is not None:

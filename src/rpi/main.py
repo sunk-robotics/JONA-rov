@@ -1,5 +1,12 @@
 #!/bin/python
-import adafruit_bno055
+#  import adafruit_bno085
+from adafruit_bno08x import (
+    BNO_REPORT_ACCELEROMETER,
+    BNO_REPORT_GYROSCOPE,
+    BNO_REPORT_MAGNETOMETER,
+    BNO_REPORT_ROTATION_VECTOR,
+)
+from adafruit_bno08x.i2c import BNO08X_I2C
 import asyncio
 import autonomous
 from autonomous import ImageHandler, CoralTransplanter, CoralReturn
@@ -8,6 +15,7 @@ import cv2
 import json
 from motors import Motors
 from ms5837 import MS5837_02BA
+from orientation import quaternion_to_euler
 from pid import PID, RotationalPID
 from power_monitoring import PowerMonitor
 from time import time
@@ -30,7 +38,12 @@ async def main_server():
         depth_sensor = None
 
     try:
-        imu = adafruit_bno055.BNO055_I2C(board.I2C())
+        #  imu = adafruit_bno055.BNO055_I2C(board.I2C())
+        imu = BNO08X_I2C(board.I2C())
+        imu.enable_feature(BNO_REPORT_ACCELEROMETER)
+        imu.enable_feature(BNO_REPORT_GYROSCOPE)
+        imu.enable_feature(BNO_REPORT_MAGNETOMETER)
+        imu.enable_feature(BNO_REPORT_ROTATION_VECTOR)
     except OSError:
         print("Unable to connect IMU!")
         imu = None
@@ -103,16 +116,19 @@ async def main_server():
             depth_sensor.read()
 
         # read sensor information
-        internal_temp = imu.temperature if imu is not None else None
+        #  internal_temp = imu.temperature if imu is not None else None
+        internal_temp = 37
         external_temp = depth_sensor.temperature() if depth_sensor is not None else None
         cpu_temp = None
         depth = depth_sensor.depth() if depth_sensor is not None else None
-        yaw = imu.euler[0] if imu is not None else None
-        roll = imu.euler[1] if imu is not None else None
-        pitch = imu.euler[2] - 90 if imu is not None else None
-        x_accel = imu.linear_acceleration[0]
-        y_accel = imu.linear_acceleration[1]
-        z_accel = imu.linear_acceleration[2]
+        quat_i, quat_j, quat_k, quat_real = imu.quaternion
+        yaw, roll, pitch = quaternion_to_euler(quat_i, quat_j, quat_k, quat_real)
+        #  yaw = imu.euler[0] if imu is not None else None
+        #  roll = imu.euler[1] if imu is not None else None
+        #  pitch = imu.euler[2] - 90 if imu is not None else None
+        x_accel = imu.acceleration[0]
+        y_accel = imu.acceleration[1]
+        z_accel = imu.acceleration[2]
         voltage_5V = power_monitor.voltage_5V() if power_monitor is not None else None
         current_5V = power_monitor.current_5V() if power_monitor is not None else None
         voltage_12V = power_monitor.voltage_12V() if power_monitor is not None else None
