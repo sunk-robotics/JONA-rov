@@ -3,6 +3,28 @@ import math
 import numpy as np
 from scipy.interpolate import splprep, splev
 
+# initialize the list of reference points and boolean indicating
+# whether cropping is being performed or not
+img = None
+refPt = []
+
+
+def click_and_crop(event, x, y, flags, param):
+    # grab references to the global variables
+    global refPt
+
+    # if the left mouse button was clicked, record the starting
+    # (x, y) coordinates and indicate that cropping is being
+    # performed
+    if event == cv2.EVENT_LBUTTONDOWN:
+        if len(refPt) == 0 or len(refPt) >= 2:
+            refPt = [(x, y)]
+        else:
+            refPt.append((x, y))
+            clone = img.copy()
+            cv2.rectangle(clone, refPt[0], refPt[1], (0, 0, 255), 2)
+            cv2.imshow("Cropped", clone)
+
 
 def smooth_contour(contour: np.ndarray) -> np.ndarray:
     x, y = contour.T
@@ -121,9 +143,12 @@ def get_contour(img: np.ndarray) -> (int, int):
 
 
 def main():
-    for i in range(0, 513):
-        img_num = 91
-        img = cv2.imread("train/images/color_image091.jpg")
+    global img, refPt
+    i = 1
+    while i < 513:
+        print(f"Image Number: {i}")
+        refPt = []
+        img = cv2.imread(f"train/images/color_image{i:03}.jpg")
 
         img_width = img.shape[1]
         img_height = img.shape[0]
@@ -142,19 +167,57 @@ def main():
         label = (
             f"0 {normalized_x} {normalized_y} {normalized_width} {normalized_height}"
         )
-        print(label)
 
         gray_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
         cv2.rectangle(img, (x, y), (x + w, y + h), (0, 255, 0), 2)
-
         cv2.imshow("Image", img)
 
-        cv2.waitKey(0)
-        cv2.imwrite(f"train/images/image{img_num}.jpg", gray_img)
-        with open(f"train/labels/image{img_num}.txt", "w") as f:
-            f.writelines(label)
-        cv2.destroyAllWindows()
+        cv2.setMouseCallback("Image", click_and_crop)
+
+        key = cv2.waitKey(0) & 0xFF
+
+        # if the 'n' key is pressed, move on to the next image
+        if key == ord("n"):
+            print(len(refPt))
+            if len(refPt) == 2:
+                x1, y1 = refPt[0]
+                x2, y2 = refPt[1]
+                w = abs(x2 - x1)
+                h = abs(y2 - y1)
+
+                middle_x = (x1 + x2) / 2
+                middle_y = (y1 + y2) / 2
+                print(middle_y)
+
+                normalized_x = middle_x / img_width
+                normalized_y = middle_y / img_height
+
+                normalized_width = w / img_width
+                normalized_height = h / img_height
+
+                label = f"0 {normalized_x} {normalized_y} {normalized_width} {normalized_height}"
+
+            cv2.imwrite(f"train/images/image{i}.jpg", gray_img)
+            print(f"Label: {label}")
+            with open(f"train/labels/image{i}.txt", "w") as f:
+                f.writelines(label)
+            i += 1
+            continue
+
+        elif key == ord("b"):
+            print("Going back to last image")
+            i -= 1
+            continue
+        elif key == ord("q"):
+            print("Qutting!")
+            break
+        elif key == ord("d"):
+            print("No red square! Moving onto next image")
+            i += 1
+            continue
+
+    cv2.destroyAllWindows()
 
     #  if vc.isOpened():
     #      ok, frame = vc.read()
