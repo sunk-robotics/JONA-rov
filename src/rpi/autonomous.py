@@ -1,15 +1,16 @@
 import asyncio
 import cv2
 from enum import auto, Enum
-from pid import PID, RotationalPID
-import numpy as np
 from functools import reduce
-from sklearn.linear_model import LinearRegression
-from time import time
-import websockets
 import math
+import numpy as np
+from pid import PID, RotationalPID
+from sklearn.linear_model import LinearRegression
 from scipy.interpolate import splprep, splev
+from time import time
 from timer import Timer
+from ultralytics import YOLO
+import websockets
 
 
 class WSServer:
@@ -100,6 +101,7 @@ class CoralReturn(Enum):
 
 class CoralTransplanter:
     def __init__(self, pool_floor_depth: float, yaw_angle: int):
+        #  self.square_detection = YOLO("square_detection_model")
         # the red square is at a height of about 32 cm above the pool floor
         self.SQUARE_HEIGHT = 0.32
         # the ROV should be 75 cm above the pool floor when searching for the square
