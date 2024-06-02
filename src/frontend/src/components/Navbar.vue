@@ -7,6 +7,9 @@ import SpeedMult from '/icons/mdi-speedometer.svg?raw';
 import JoystickOn from '/icons/mdi-controller.svg?raw'
 import JoystickOff from '/icons/mdi-controller-off.svg?raw'
 
+import ElectricityOn from '/icons/mdi-lightning-bolt.svg?raw'
+import ElectricityOff from '/icons/mdi-lightning-bolt-off.svg?raw'
+
 import { gamepad_ws } from '@/scripts/gamepad';
 import { ref } from 'vue';
 
@@ -73,6 +76,9 @@ const sensorData = useSensorDataStore()
         </div>
         <div class="card gp-state">
             <div class="card-icon" v-html="gp_conn_state ? JoystickOn : JoystickOff"></div>
+        </div>
+        <div class="card gp-state">
+            <div class="card-icon" v-html="Number(sensorData.get('current_5V')) > 25.0 ? ElectricityOn : ElectricityOff"></div>
         </div>
     </nav>
 </template>
