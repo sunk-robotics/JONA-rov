@@ -38,6 +38,8 @@ class WSServer:
 class ImageHandler:
     image = None
     is_listening = False
+    frame_number = 0
+    square_coords = (None, None)
 
     @classmethod
     async def image_handler(cls, uri):
@@ -59,6 +61,8 @@ class ImageHandler:
                     try:
                         buffer = np.asarray(bytearray(message), dtype="uint8")
                         cls.image = cv2.imdecode(buffer, cv2.IMREAD_COLOR)
+                        #  if cls.frame_number % 10 == 0:
+                        #      cls.square_coords = center_of_square(cls.image)
                     except Exception as e:
                         print(e)
 
@@ -158,8 +162,8 @@ class CoralTransplanter:
         self.approaching_timer = Timer()
         self.estimation_timer = Timer()
 
-        #  self.current_step = CoralState.STARTING
-        self.current_step = CoralState.APPROACHING
+        self.current_step = CoralState.STARTING
+        #  self.current_step = CoralState.APPROACHING
 
     def next_step(
         self, depth: float, yaw: float, roll: float, pitch: float
@@ -168,8 +172,10 @@ class CoralTransplanter:
         y_velocity = 0
         z_velocity = 0
         yaw_velocity = 0
-        roll_velocity = self.roll_pid.compute(roll) if self.roll_anchor else 0
-        pitch_velocity = self.pitch_pid.compute(pitch) if self.pitch_anchor else 0
+        #  roll_velocity = self.roll_pid.compute(roll) if self.roll_anchor else 0
+        #  pitch_velocity = self.pitch_pid.compute(pitch) if self.pitch_anchor else 0
+        roll_velocity = 0
+        pitch_velocity = 0
 
         img = ImageHandler.pump_image()
         if img is None:
@@ -219,8 +225,9 @@ class CoralTransplanter:
         # Non-Ideal but Non-Failure Condition: False positive
         # Result: Verify the square's existence
         elif self.current_step == CoralState.APPROACHING:
-            z_velocity = self.depth_pid.compute(depth)
-            yaw_velocity = self.yaw_pid.compute(yaw)
+            print(f"Roll Velocity: {roll_velocity} Pitch Velocity: {pitch_velocity}")
+            #  z_velocity = self.depth_pid.compute(depth)
+            #  yaw_velocity = self.yaw_pid.compute(yaw)
             y_velocity = 0.2
 
             # if the square can't be found after moving for 15 seconds, just give up
@@ -230,7 +237,9 @@ class CoralTransplanter:
                 print("Couldn't Find Square!")
                 return (0, 0, 0, 0, 0, 0, CoralReturn.FAILED)
 
-            x_coord, y_coord = center_of_square(img)
+            start_time = time()
+            x_coord, y_coord = center_of_square(img, save_image=True)
+            print(f"Time Taken: {time() - start_time}")
             # may want to implement something to make sure the x and y coords are stable
             # to prevent the algorithm from latching onto some random red object
 
@@ -248,7 +257,7 @@ class CoralTransplanter:
             yaw_velocity = self.yaw_pid.compute(yaw)
             y_velocity = -0.1
 
-            x_coord, y_coord = center_of_square(img)
+            x_coord, y_coord = center_of_square(img, save_image=True)
             if self.verify_count < self.NUM_VERIFICATIONS:
                 if x_coord is not None and y_coord is not None:
                     self.prev_square_coords.append((x_coord, y_coord, time()))
@@ -416,13 +425,28 @@ class CoralTransplanter:
 
 
 # Find the coordinates of the center of the red square using YOLO
-def center_of_square(img: np.ndarray) -> (int, int):
+def center_of_square(img: np.ndarray, save_image=False) -> (int, int):
     results = SQUARE_DETECTION_MODEL.predict(source=img, save=False)
     if len(results) > 0 and len(results[0]) > 0:
         x1, y1, x2, y2 = [round(tensor.item()) for tensor in results[0].boxes.xyxy[0]]
         center_x = round((x2 + x1) / 2)
         center_y = round((y2 + y1) / 2)
+        if save_image:
+            cv2.circle(img, (center_x, center_y), 5, (255, 255, 255), -1)
+            cv2.putText(
+                img,
+                "Centroid",
+                (center_x - 25, center_y - 25),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.5,
+                (255, 255, 255),
+                2,
+            )
+            cv2.imwrite(f"./images/{time()}.jpg", img)
         return center_x, center_y
+    else:
+        if save_image:
+            cv2.imwrite(f"./images/{time()}.jpg", img)
 
     return None, None
 
@@ -589,7 +613,7 @@ def center_of_red(img: np.ndarray, save_image=False) -> (int, int):
             (255, 255, 255),
             2,
         )
-        cv2.imwrite(f"./images/{time()}.jpg", img)
+        #  cv2.imwrite(f"./images/{time()}.jpg", img)
     return x_coord, y_coord
 
 
