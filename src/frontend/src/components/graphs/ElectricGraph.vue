@@ -28,8 +28,8 @@ type SensorData = {
 
 <template>
     <div>
-        <Graph :field="'voltage_12V'" :header="'12V Voltage'" :range="[0, 1]" />
-        <Graph :field="'current_12V'" :header="'12V Current'" :range="[-5, 20]" />
+        <Graph :field="'voltage_12V'" :header="'12V Voltage'" :range="[0, 20]" />
+        <Graph :field="'current_12V'" :header="'12V Current'" :range="[0, 30]" />
         <Graph :field="'voltage_5V'" :header="'5V Voltage'" :range="[0, 10]" />
         <Graph :field="'current_5V'" :header="'5V Current'" :range="[0, 10]" />
     </div>
