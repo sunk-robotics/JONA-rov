@@ -13,7 +13,7 @@ from ultralytics import YOLO
 import websockets
 
 
-SQUARE_DETECTION_MODEL = YOLO("square_detection_model")
+SQUARE_DETECTION_MODEL = YOLO("square_detection_ncnn_model")
 
 
 class WSServer:
@@ -104,7 +104,7 @@ class CoralReturn(Enum):
 
 class CoralTransplanter:
     def __init__(self, pool_floor_depth: float, yaw_angle: int):
-        self.square_detection = YOLO("square_detection_model")
+        #  self.square_detection = YOLO("square_detection_model")
         # the red square is at a height of about 32 cm above the pool floor
         self.SQUARE_HEIGHT = 0.32
         # the ROV should be 75 cm above the pool floor when searching for the square
@@ -158,7 +158,8 @@ class CoralTransplanter:
         self.approaching_timer = Timer()
         self.estimation_timer = Timer()
 
-        self.current_step = CoralState.STARTING
+        #  self.current_step = CoralState.STARTING
+        self.current_step = CoralState.APPROACHING
 
     def next_step(
         self, depth: float, yaw: float, roll: float, pitch: float
@@ -229,12 +230,12 @@ class CoralTransplanter:
                 print("Couldn't Find Square!")
                 return (0, 0, 0, 0, 0, 0, CoralReturn.FAILED)
 
-            x_coord, y_coord = center_of_square(img, save_image=True)
+            x_coord, y_coord = center_of_square(img)
             # may want to implement something to make sure the x and y coords are stable
             # to prevent the algorithm from latching onto some random red object
 
             if x_coord is not None and y_coord is not None:
-                print("Found square!")
+                print(f"Found square at ({x_coord}, {y_coord})!")
                 self.prev_square_coords = []
 
                 self.approaching_timer.stop()
@@ -263,10 +264,11 @@ class CoralTransplanter:
                 std_dev_x = np.std(coords_np_array, axis=0)
                 std_dev_y = np.std(coords_np_array, axis=1)
 
-                num_not_found = reduce(
-                    lambda c: int(c[0] is None and c[1] is None),
-                    self.prev_square_coords,
-                )
+                num_not_found = 0
+                for coords in self.prev_square_coords:
+                    if coords[0] is None and coords[1] is None:
+                        num_not_found += 1
+
                 # to verify the square's existence, the square should be visible for
                 # over 90% of the time, and vary too much in its location (given that
                 # the ROV is supposed to be stationary)
