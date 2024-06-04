@@ -13,6 +13,9 @@ from ultralytics import YOLO
 import websockets
 
 
+SQUARE_DETECTION_MODEL = YOLO("square_detection_model")
+
+
 class WSServer:
     frame = None
 
@@ -101,7 +104,7 @@ class CoralReturn(Enum):
 
 class CoralTransplanter:
     def __init__(self, pool_floor_depth: float, yaw_angle: int):
-        #  self.square_detection = YOLO("square_detection_model")
+        self.square_detection = YOLO("square_detection_model")
         # the red square is at a height of about 32 cm above the pool floor
         self.SQUARE_HEIGHT = 0.32
         # the ROV should be 75 cm above the pool floor when searching for the square
@@ -226,7 +229,7 @@ class CoralTransplanter:
                 print("Couldn't Find Square!")
                 return (0, 0, 0, 0, 0, 0, CoralReturn.FAILED)
 
-            x_coord, y_coord = center_of_red(img, save_image=True)
+            x_coord, y_coord = center_of_square(img, save_image=True)
             # may want to implement something to make sure the x and y coords are stable
             # to prevent the algorithm from latching onto some random red object
 
@@ -244,7 +247,7 @@ class CoralTransplanter:
             yaw_velocity = self.yaw_pid.compute(yaw)
             y_velocity = -0.1
 
-            x_coord, y_coord = center_of_red(img)
+            x_coord, y_coord = center_of_square(img)
             if self.verify_count < self.NUM_VERIFICATIONS:
                 if x_coord is not None and y_coord is not None:
                     self.prev_square_coords.append((x_coord, y_coord, time()))
@@ -285,7 +288,7 @@ class CoralTransplanter:
             EPSILON = 20
             z_velocity = self.depth_pid.compute(depth)
 
-            x_coord, y_coord = center_of_red(img)
+            x_coord, y_coord = center_of_square(img)
 
             if x_coord is not None and y_coord is not None:
                 self.estimating_timer.stop()
@@ -334,10 +337,10 @@ class CoralTransplanter:
             #  yaw_velocity = self.yaw_pid.compute(yaw)
             y_velocity = 0.2
 
-            x_coord, y_coord = center_of_red(img)
+            x_coord, y_coord = center_of_square(img)
             if x_coord is not None and y_coord is not None:
                 print(f"Coords: ({x_coord}, {y_coord})")
-                center_of_red(img, save_image=True)
+                center_of_square(img, save_image=True)
                 self.prev_square_coords.append((x_coord, y_coord, time()))
                 #  self.square_x_pid.update_set_point(img_center_x)
                 yaw_velocity = self.square_x_pid.compute(x_coord)
@@ -408,6 +411,18 @@ class CoralTransplanter:
             pitch_velocity,
             return_code,
         )
+
+
+# Find the coordinates of the center of the red square using YOLO
+def center_of_square(img: np.ndarray) -> (int, int):
+    results = SQUARE_DETECTION_MODEL.predict(source=img, save=False)
+    if len(results) > 0 and len(results[0]) > 0:
+        x1, y1, x2, y2 = [round(tensor.item()) for tensor in results[0].boxes.xyxy[0]]
+        center_x = round((x2 + x1) / 2)
+        center_y = round((y2 + y1) / 2)
+        return center_x, center_y
+
+    return None, None
 
 
 # Smooth a contour and make it solid
@@ -740,7 +755,7 @@ async def main_loop():
         img_center_x = img_width / 2
         img_center_y = img_height / 2
 
-        x_coord, y_coord = center_of_red(img)
+        x_coord, y_coord = center_of_square(img)
         if x_coord is None or y_coord is None:
             await asyncio.sleep(0.01)
             continue
