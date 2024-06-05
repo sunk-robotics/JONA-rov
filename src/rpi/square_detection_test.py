@@ -31,9 +31,14 @@ class ImageHandler:
 
                     try:
                         buffer = np.asarray(bytearray(message), dtype="uint8")
-                        if cls.frame_number % 10 == 0:
-                            cls.image = cv2.imdecode(buffer, cv2.IMREAD_COLOR)
-                            cls.square_coords = center_of_square(cls.image)
+                        cls.image = cv2.imdecode(buffer, cv2.IMREAD_COLOR)
+                        #  cls.image = cv2.resize(
+                        #      img, (426, 240), interpolation=cv2.INTER_LINEAR
+                        #  )
+                        #  if cls.frame_number % 10 == 0:
+                        #      cls.image = cv2.imdecode(buffer, cv2.IMREAD_COLOR)
+                        #      cls.square_coords = center_of_square(cls.image)
+                        #  cls.frame_number += 1
                     except Exception as e:
                         print(e)
 
@@ -42,7 +47,9 @@ class ImageHandler:
 
     @classmethod
     def pump_image(cls):
-        return cls.image
+        img = cls.image
+        cls.image = None
+        return img
 
     @classmethod
     def start_listening(cls):
@@ -70,11 +77,13 @@ async def main_loop():
             await asyncio.sleep(0.01)
             continue
 
+        print(f"Square Coords: ({x_coord}, {y_coord})")
+
         # find how far the center of the red object is from the center of the image
         x_error = img_center_x - x_coord
         y_error = img_center_y - y_coord
 
-        print(f"X Error: {x_error} Y Error: {y_error}")
+        #  print(f"X Error: {x_error} Y Error: {y_error}")
 
         await asyncio.sleep(0.01)
 
@@ -84,7 +93,8 @@ def main():
     #  ws_server = websockets.serve(WSServer.handler, "0.0.0.0", 3009, ping_interval=None)
     #  asyncio.ensure_future(ws_server)
     #  print(f"Connected to: {websocket}")
-    asyncio.ensure_future(ImageHandler.image_handler("ws://localhost:3000"))
+    asyncio.ensure_future(ImageHandler.image_handler("ws://192.168.1.9:3000"))
+    ImageHandler.start_listening()
     asyncio.ensure_future(main_loop())
     loop.run_forever()
 
