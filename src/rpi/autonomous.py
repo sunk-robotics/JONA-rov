@@ -60,9 +60,9 @@ class ImageHandler:
 
                     try:
                         buffer = np.asarray(bytearray(message), dtype="uint8")
-                        cls.image = cv2.imdecode(buffer, cv2.IMREAD_COLOR)
-                        #  if cls.frame_number % 10 == 0:
-                        #      cls.square_coords = center_of_square(cls.image)
+                        if cls.frame_number % 10 == 0:
+                            cls.image = cv2.imdecode(buffer, cv2.IMREAD_COLOR)
+                            cls.square_coords = center_of_square(cls.image)
                     except Exception as e:
                         print(e)
 
@@ -451,55 +451,6 @@ def center_of_square(img: np.ndarray, save_image=False) -> (int, int):
     return None, None
 
 
-# Smooth a contour and make it solid
-def smooth_contour(contour: np.ndarray) -> np.ndarray:
-    x, y = contour.T
-    x = x.tolist()[0]
-    y = y.tolist()[0]
-    tck, u = splprep([x, y], u=None, s=1.0, per=1)
-    u_new = np.linspace(u.min(), u.max(), 100)
-    x_new, y_new = splev(u_new, tck, der=0)
-    res_array = [[[int(i[0]), int(i[1])]] for i in zip(x_new, y_new)]
-    return np.asarray(res_array, dtype=np.int32)
-
-
-# Remove the horkfook from the image, which often interferes with the image
-# segmentation algorithm. Image must be HSV (Hue, Saturation, Value).
-def filter_out_hork(img: np.ndarray) -> np.ndarray:
-    lower_orange = np.array([13, 10, 10])
-    upper_orange = np.array([35, 255, 255])
-    orange_mask = cv2.inRange(img, lower_orange, upper_orange)
-    # turn all parts of the image that aren't orange into black
-    orange_img = cv2.bitwise_and(img, img, mask=orange_mask)
-    gray_img = cv2.split(orange_img)[2]
-    ok, thresh = cv2.threshold(gray_img, 1, 255, cv2.THRESH_BINARY)
-    kernel = np.ones((5, 5), np.uint8)
-    thresh = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, kernel, iterations=1)
-
-    # find the contours of the two hooks
-    contours, hierarchy = cv2.findContours(
-        thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE
-    )
-    hook_contours = sorted(contours, key=cv2.contourArea, reverse=True)[0:2]
-    if len(hook_contours) < 2:
-        print("Unable to filter out hork!")
-        return img
-    smoothened_contours = [
-        smooth_contour(hook_contours[0]),
-        smooth_contour(hook_contours[1]),
-    ]
-
-    mask = np.zeros_like(thresh)
-    cv2.drawContours(mask, smoothened_contours, -1, 255, -1)
-    # dilate the mask to remove the pixels around the edges of the hooks that
-    # like to cause problems
-    kernel = np.ones((5, 5), np.uint8)
-    mask = cv2.dilate(mask, kernel, iterations=2)
-    cv2.bitwise_not(mask, mask)
-
-    return cv2.bitwise_and(img, img, mask=mask)
-
-
 def filter_contours(contours: np.ndarray, iter_num: int) -> bool:
     filtered_contours = []
     for contour in contours:
@@ -615,158 +566,6 @@ def center_of_red(img: np.ndarray, save_image=False) -> (int, int):
         )
         #  cv2.imwrite(f"./images/{time()}.jpg", img)
     return x_coord, y_coord
-
-
-def simplify_contour(contour, n_corners=4):
-    """
-    Binary searches best `epsilon` value to force contour
-        approximation contain exactly `n_corners` points.
-
-    :param contour: OpenCV2 contour.
-    :param n_corners: Number of corners (points) the contour must contain.
-
-    :returns: Simplified contour in successful case. Otherwise returns initial contour.
-    """
-    n_iter, max_iter = 0, 100
-    lb, ub = 0.0, 1.0
-
-    while True:
-        n_iter += 1
-        if n_iter > max_iter:
-            return contour
-
-        k = (lb + ub) / 2.0
-        eps = k * cv2.arcLength(contour, True)
-        approx = cv2.approxPolyDP(contour, eps, True)
-
-        if len(approx) > n_corners:
-            lb = (lb + ub) / 2.0
-        elif len(approx) < n_corners:
-            ub = (lb + ub) / 2.0
-        else:
-            return approx
-
-
-# gets the coordinates of the four corners of the largest red square in an image
-# returns None if corners can't be found
-def find_corners(image):
-    img_blur = cv2.GaussianBlur(image, (9, 9), 0)
-    img_hsv = cv2.cvtColor(img_blur, cv2.COLOR_BGR2HSV)
-
-    lower_red1 = np.array([0, 80, 80])
-    upper_red1 = np.array([10, 255, 255])
-
-    lower_red2 = np.array([170, 80, 80])
-    upper_red2 = np.array([180, 255, 255])
-
-    red_mask1 = cv2.inRange(img_hsv, lower_red1, upper_red1)
-    red_mask2 = cv2.inRange(img_hsv, lower_red2, upper_red2)
-
-    red_mask = red_mask1 + red_mask2
-
-    # turn all parts of the image that aren't red into black
-    red_img = cv2.cvtColor(
-        cv2.bitwise_and(img_hsv, img_hsv, mask=red_mask), cv2.COLOR_HSV2BGR
-    )
-
-    gray = cv2.cvtColor(red_img, cv2.COLOR_BGR2GRAY)
-    # filter to remove noise from the edges that can result in the contours becoming
-    # jagged
-    filtered_gray = cv2.bilateralFilter(gray, 9, 75, 75)
-    # turn image into a binary (black and white) image
-    thresh = cv2.threshold(filtered_gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[
-        1
-    ]
-
-    # apply morphology
-    kernel = np.ones((7, 7), np.uint8)
-    morph = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, kernel)
-    morph = cv2.morphologyEx(morph, cv2.MORPH_OPEN, kernel)
-
-    # get largest contour
-    contours = cv2.findContours(morph, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    contours = contours[0] if len(contours) == 2 else contours[1]
-    area_thresh = 0
-    big_contour = None
-    for c in contours:
-        area = cv2.contourArea(c)
-        if area > area_thresh:
-            area_thresh = area
-            big_contour = c
-
-    if big_contour is None:
-        return None
-    # simplify the shape of the contour to a quadrilateral
-    quad_contour = simplify_contour(big_contour)
-    # get perimeter and approximate a polygon
-    peri = cv2.arcLength(quad_contour, True)
-    corners = cv2.approxPolyDP(quad_contour, 0.02 * peri, True)
-
-    if len(corners) != 4:
-        return None
-
-    corners = np.resize(corners, (4, 2))
-    keys = (corners[:, 0], corners[:, 1])
-
-    # Indices for sorted array
-    sorted_indices = np.lexsort(keys)
-
-    # Apply array indexing to obtain sorted array
-    corners = corners[sorted_indices]
-
-    top_corners = corners[0:2]
-    keys = (top_corners[:, 1], top_corners[:, 0])
-    sorted_indices = np.lexsort(keys)
-    top_corners = top_corners[sorted_indices]
-
-    bottom_corners = corners[2:4]
-    keys = (bottom_corners[:, 1], bottom_corners[:, 0])
-    sorted_indices = np.lexsort(keys)
-    bottom_corners = bottom_corners[sorted_indices]
-
-    corners = np.append(top_corners, bottom_corners, axis=0)
-
-    print(f"Sorted Corners: {corners}")
-
-    return corners.astype(np.float32)
-
-
-def distance_from_square(img):
-    CAMERA_MATRIX = np.array(
-        [
-            (2.1484589086606215e03, 0, 8.8823443046428349e02),
-            (0, 2.1553101552978601e03, 6.1716956646878486e02),
-            (0, 0, 1),
-        ]
-    )
-    DIST_COEFFS = np.array(
-        [
-            (
-                -0.81642321343572366,
-                1.5568737137734159,
-                -0.0042440573440693579,
-                -0.0022688996764112274,
-                -2.1523633613219233,
-            )
-        ]
-    )
-    points_3d = np.array(
-        [[-7.5, 7.5, 0], [7.5, 7.5, 0], [7.5, -7.5, 0], [-7.5, -7.5, 0]], dtype="single"
-    )
-
-    corners = find_corners(img)
-    points_2d = np.array([corners[2], corners[3], corners[1], corners[0]])
-
-    if points_2d is not None:
-        ok, rotation_vec, translation_vec = cv2.solvePnP(
-            points_3d,
-            points_2d,
-            CAMERA_MATRIX,
-            DIST_COEFFS,
-            flags=cv2.SOLVEPNP_IPPE_SQUARE,
-        )
-
-        return translation_vec[2]
 
 
 async def main_loop():
