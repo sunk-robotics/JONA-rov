@@ -37,10 +37,11 @@ for filepath in glob.iglob("coral_dataset/train/new_images/*.jpg"):
             2,
         )
         #  cv2.imshow("Object Detection", annotated_frame)
-        cv2.imwrite(f"{img_num}.jpg", annotated_frame)
+        #  cv2.imwrite(f"{img_num}.jpg", annotated_frame)
     else:
+        pass
         #  cv2.imshow("Object Detection", img)
-        cv2.imwrite(f"{img_num}.jpg", img)
+        #  cv2.imwrite(f"{img_num}.jpg", img)
     #  cv2.waitKey(0)
     img_num += 1
 

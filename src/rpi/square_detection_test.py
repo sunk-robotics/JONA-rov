@@ -2,8 +2,15 @@ import asyncio
 from autonomous import center_of_square
 import cv2
 import numpy as np
+import threading
+from time import time
 import websockets
 from ws_server import WSServer
+
+
+def process_image(img):
+    x_coord, y_coord = center_of_square(img)
+    print(f"Coords: {x_coord}, {y_coord}")
 
 
 class ImageHandler:
@@ -11,6 +18,12 @@ class ImageHandler:
     is_listening = False
     frame_number = 0
     square_coords = (None, None)
+    last_frame_time = 0
+
+    @classmethod
+    def process_image(cls, img):
+        cls.square_coords = center_of_square(img)
+        cls.image = img
 
     @classmethod
     async def image_handler(cls, uri):
@@ -18,38 +31,39 @@ class ImageHandler:
             async with websockets.connect(uri) as websocket:
                 while True:
                     if not cls.is_listening:
-                        await asyncio.sleep(0.01)
+                        await asyncio.sleep(0.001)
                         continue
                     try:
                         message = await websocket.recv()
                     except websockets.ConnectionClosedError:
-                        await asyncio.sleep(0.01)
+                        await asyncio.sleep(0.001)
                         break
                     if message is None:
-                        await asyncio.sleep(0.01)
+                        await asyncio.sleep(0.001)
                         continue
 
                     try:
                         buffer = np.asarray(bytearray(message), dtype="uint8")
-                        cls.image = cv2.imdecode(buffer, cv2.IMREAD_COLOR)
-                        #  cls.image = cv2.resize(
-                        #      img, (426, 240), interpolation=cv2.INTER_LINEAR
-                        #  )
-                        #  if cls.frame_number % 10 == 0:
-                        #      cls.image = cv2.imdecode(buffer, cv2.IMREAD_COLOR)
-                        #      cls.square_coords = center_of_square(cls.image)
-                        #  cls.frame_number += 1
+                        img = cv2.imdecode(buffer, cv2.IMREAD_COLOR)
+                        x = threading.Thread(target=cls.process_image, args=(img,))
+                        x.start()
+                        print(
+                            f"Frametime: {(time() - cls.last_frame_time) * 1000:.2f} ms"
+                        )
+                        cls.last_frame_time = time()
                     except Exception as e:
                         print(e)
 
-                    await asyncio.sleep(0.01)
-            await asyncio.sleep(0.01)
+                    await asyncio.sleep(0.001)
+            await asyncio.sleep(0.001)
 
     @classmethod
     def pump_image(cls):
         img = cls.image
+        square_coords = cls.square_coords
+        cls.square_coords = None, None
         cls.image = None
-        return img
+        return img, square_coords
 
     @classmethod
     def start_listening(cls):
@@ -62,9 +76,9 @@ class ImageHandler:
 
 async def main_loop():
     while True:
-        img = ImageHandler.pump_image()
+        img, square_coords = ImageHandler.pump_image()
         if img is None:
-            await asyncio.sleep(0.01)
+            await asyncio.sleep(0.001)
             continue
 
         # find the center of the image
@@ -72,10 +86,11 @@ async def main_loop():
         img_center_x = img_width / 2
         img_center_y = img_height / 2
 
-        x_coord, y_coord = center_of_square(img)
-        if x_coord is None or y_coord is None:
-            await asyncio.sleep(0.01)
-            continue
+        #  x_coord, y_coord = center_of_square(img)
+        x_coord, y_coord = square_coords[0], square_coords[1]
+        #  if x_coord is None or y_coord is None:
+        #      await asyncio.sleep(0.001)
+        #      continue
 
         print(f"Square Coords: ({x_coord}, {y_coord})")
 
@@ -85,7 +100,7 @@ async def main_loop():
 
         #  print(f"X Error: {x_error} Y Error: {y_error}")
 
-        await asyncio.sleep(0.01)
+        await asyncio.sleep(0.001)
 
 
 def main():

@@ -426,7 +426,7 @@ class CoralTransplanter:
 
 # Find the coordinates of the center of the red square using YOLO
 def center_of_square(img: np.ndarray, save_image=False) -> (int, int):
-    results = SQUARE_DETECTION_MODEL.predict(source=img, save=False, imgsz=(448, 256))
+    results = SQUARE_DETECTION_MODEL.predict(source=img, save=False, imgsz=256)
     if len(results) > 0 and len(results[0]) > 0:
         x1, y1, x2, y2 = [round(tensor.item()) for tensor in results[0].boxes.xyxy[0]]
         center_x = round((x2 + x1) / 2)
