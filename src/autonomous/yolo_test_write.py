@@ -20,7 +20,9 @@ for filepath in glob.iglob("coral_dataset/train/new_images/*.jpg"):
 
     results = model.predict(source=gray, save=False, imgsz=256)
     if len(results) > 0 and len(results[0]) > 0:
-        x1, y1, x2, y2 = [round(tensor.item()) for tensor in results[0].boxes.xyxy[0]]
+        x1, y1, x2, y2 = [
+            round(tensor.item()) for tensor in results[0].boxes.xyxy[0]
+        ]
         print(x1, y2, x2, y2)
         center_x = round((x2 + x1) / 2)
         center_y = round((y2 + y1) / 2)
