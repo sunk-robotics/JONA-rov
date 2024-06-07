@@ -4,8 +4,8 @@ from picamera2.outputs import FileOutput
 from picamera2.encoders import MJPEGEncoder
 import io
 import asyncio
-from libcamera import controls, Rectangle
-from websockets import broadcast, serve, ConnectionClosed, ConnectionClosedOK
+from libcamera import controls
+from websockets import broadcast, serve, ConnectionClosed
 
 
 class StreamingOutput(io.BufferedIOBase):
@@ -26,12 +26,8 @@ class WSServer:
             if cls.output.frame is None:
                 await asyncio.sleep(0.001)
                 continue
-            clients = cls.clients
-            for websocket in clients:
-                try:
-                    await websocket.send(bytearray(cls.output.frame))
-                except ConnectionClosed:
-                    print("Unable to send frame! Connection closed!")
+            clients = cls.clients.copy()
+            broadcast(clients, cls.output.frame)
             cls.output.frame = None
             await asyncio.sleep(0.001)
 
@@ -51,16 +47,24 @@ class WSServer:
 def main():
     picam2 = Picamera2()
     print(picam2.sensor_modes)
-    config = picam2.create_video_configuration(main={"size": (854, 480)}, raw={"size": (1920, 1080)})
+    config = picam2.create_video_configuration(
+        main={"size": (854, 480)}, raw={"size": (1920, 1080)}
+    )
     picam2.configure(config)
-    picam2.set_controls({"AfMode": controls.AfModeEnum.Continuous, "AeEnable": True, "AwbEnable": True, "AwbMode": controls.AwbModeEnum.Cloudy, "Saturation": 1.0, "Contrast": 1.0})
-    picam2.start_recording(MJPEGEncoder(25_000_000),
-                           FileOutput(WSServer.output))
+    picam2.set_controls(
+        {
+            "AfMode": controls.AfModeEnum.Continuous,
+            "AeEnable": True,
+            "AwbEnable": True,
+            "AwbMode": controls.AwbModeEnum.Cloudy,
+            "Saturation": 1.0,
+            "Contrast": 1.0,
+        }
+    )
+    picam2.start_recording(MJPEGEncoder(25_000_000), FileOutput(WSServer.output))
 
     loop = asyncio.get_event_loop()
-    ws_server = serve(
-        WSServer.handler, "0.0.0.0", 3000, ping_interval=None
-    )
+    ws_server = serve(WSServer.handler, "0.0.0.0", 3000, ping_interval=None)
     print("Server started!")
     asyncio.ensure_future(ws_server)
     asyncio.ensure_future(WSServer.listen_for_frame())
@@ -69,4 +73,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
