@@ -2,57 +2,62 @@ import asyncio
 from autonomous import center_of_square
 import cv2
 import numpy as np
+from queue import Queue, Full
 import threading
-from time import time
+from time import time, sleep
 import websockets
 from ws_server import WSServer
 
 
-def process_image(img):
-    x_coord, y_coord = center_of_square(img)
-    print(f"Coords: {x_coord}, {y_coord}")
-
-
 class ImageHandler:
     image = None
-    is_listening = False
-    frame_number = 0
     square_coords = (None, None)
+    # the image queue should only hold one image at a time
+    image_queue = Queue(1)
+
+    is_listening = False
     last_frame_time = 0
 
+    # process each image in a separate thread to avoid blocking. uses a queue that holds
+    # only the most recent image
     @classmethod
-    def process_image(cls, img):
-        cls.square_coords = center_of_square(img)
-        cls.image = img
+    def image_processer(cls):
+        while True:
+            img = cls.image_queue.get()
+            cls.square_coords = center_of_square(img)
+            cls.image = img
+            cls.image_queue.task_done()
 
     @classmethod
     async def image_handler(cls, uri):
+        # spawn a thread to process incoming images without blocking
+        threading.Thread(target=ImageHandler.image_processer, daemon=True).start()
+        # if a connection is dropped, keep trying to make another connection
         while True:
             async with websockets.connect(uri) as websocket:
                 while True:
                     if not cls.is_listening:
                         await asyncio.sleep(0.001)
                         continue
+
                     try:
                         message = await websocket.recv()
+                        if message is None:
+                            await asyncio.sleep(0.001)
                     except websockets.ConnectionClosedError:
                         await asyncio.sleep(0.001)
                         break
-                    if message is None:
-                        await asyncio.sleep(0.001)
-                        continue
 
+                    buffer = np.asarray(bytearray(message), dtype="uint8")
+                    img = cv2.imdecode(buffer, cv2.IMREAD_COLOR)
+                    #  print(f"Frametime: {(time() - cls.last_frame_time) * 1000:.2f} ms")
+                    #  cls.last_frame_time = time()
                     try:
-                        buffer = np.asarray(bytearray(message), dtype="uint8")
-                        img = cv2.imdecode(buffer, cv2.IMREAD_COLOR)
-                        x = threading.Thread(target=cls.process_image, args=(img,))
-                        x.start()
-                        print(
-                            f"Frametime: {(time() - cls.last_frame_time) * 1000:.2f} ms"
-                        )
-                        cls.last_frame_time = time()
-                    except Exception as e:
-                        print(e)
+                        # if the image is still being processed, just drop the frame to
+                        # avoid building up any latency
+                        cls.image_queue.put_nowait(img)
+                    except Full:
+                        pass
 
                     await asyncio.sleep(0.001)
             await asyncio.sleep(0.001)
@@ -92,11 +97,11 @@ async def main_loop():
         #      await asyncio.sleep(0.001)
         #      continue
 
-        print(f"Square Coords: ({x_coord}, {y_coord})")
+        #  print(f"Square Coords: ({x_coord}, {y_coord})")
 
         # find how far the center of the red object is from the center of the image
-        x_error = img_center_x - x_coord
-        y_error = img_center_y - y_coord
+        #  x_error = img_center_x - x_coord
+        #  y_error = img_center_y - y_coord
 
         #  print(f"X Error: {x_error} Y Error: {y_error}")
 
