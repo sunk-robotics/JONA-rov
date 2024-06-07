@@ -2,6 +2,7 @@ import cv2
 import math
 import numpy as np
 from scipy.interpolate import splprep, splev
+from ultralytics import YOLO
 
 # initialize the list of reference points and boolean indicating
 # whether cropping is being performed or not
@@ -143,34 +144,45 @@ def get_contour(img: np.ndarray) -> (int, int):
 
 
 def main():
+    model = YOLO("../model_small_ncnn_model")
     global img, refPt
     i = 1
     while i < 513:
         print(f"Image Number: {i}")
         refPt = []
-        img = cv2.imread(f"train/images/color_image{i:03}.jpg")
+        img = cv2.imread(f"train/new_images/new_image{i}.jpg")
 
         img_width = img.shape[1]
         img_height = img.shape[0]
 
-        contour = get_contour(img)
-        x, y, w, h = cv2.boundingRect(contour)
-        middle_x = x + w / 2
-        middle_y = y + h / 2
+        #  contour = get_contour(img)
+        results = model.predict(source=img, save=False, imgsz=256)
+        print(len(results))
+        if len(results) > 0 and len(results[0]) > 0:
+            normalized_x, normalized_y, normalized_w, normalized_h = results[
+                0
+            ].boxes.xywhn[0]
+            x, y, w, h = [round(tensor.item()) for tensor in results[0].boxes.xywh[0]]
+            #  x, y, w, h = cv2.boundingRect(contour)
+            #  middle_x = x + w / 2
+            #  middle_y = y + h / 2
 
-        normalized_x = middle_x / img_width
-        normalized_y = middle_y / img_height
+            #  normalized_x = middle_x / img_width
+            #  normalized_y = middle_y / img_height
 
-        normalized_width = w / img_width
-        normalized_height = h / img_height
+            #  normalized_width = w / img_width
+            #  normalized_height = h / img_height
 
-        label = (
-            f"0 {normalized_x} {normalized_y} {normalized_width} {normalized_height}"
-        )
+            #  label = (
+            #      f"0 {normalized_x} {normalized_y} {normalized_width} {normalized_height}"
+            #  )
+            label = f"0 {normalized_x} {normalized_y} {normalized_w} {normalized_h}"
 
-        gray_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+            gray_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
-        cv2.rectangle(img, (x, y), (x + w, y + h), (0, 255, 0), 2)
+            cv2.rectangle(
+                img, (x - w // 2, y - h // 2), (x + w // 2, y + h // 2), (0, 255, 0), 2
+            )
         cv2.imshow("Image", img)
 
         cv2.setMouseCallback("Image", click_and_crop)
@@ -198,10 +210,15 @@ def main():
 
                 label = f"0 {normalized_x} {normalized_y} {normalized_width} {normalized_height}"
 
-            cv2.imwrite(f"train/images/image{i}.jpg", gray_img)
+            if label == "":
+                print("No label!")
+                continue
+
+            cv2.imwrite(f"train/images/new_image{i}.jpg", gray_img)
             print(f"Label: {label}")
-            with open(f"train/labels/image{i}.txt", "w") as f:
+            with open(f"train/labels/new_image{i}.txt", "w") as f:
                 f.writelines(label)
+            label = ""
             i += 1
             continue
 
