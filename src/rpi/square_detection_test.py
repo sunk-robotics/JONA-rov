@@ -81,7 +81,7 @@ class ImageHandler:
 
 async def main_loop():
     while True:
-        img, square_coords = ImageHandler.pump_image()
+        img, (x_coord, y_coord) = ImageHandler.pump_image()
         if img is None:
             await asyncio.sleep(0.001)
             continue
@@ -92,12 +92,12 @@ async def main_loop():
         img_center_y = img_height / 2
 
         #  x_coord, y_coord = center_of_square(img)
-        x_coord, y_coord = square_coords[0], square_coords[1]
+        #  x_coord, y_coord = square_coords[0], square_coords[1]
         #  if x_coord is None or y_coord is None:
         #      await asyncio.sleep(0.001)
         #      continue
 
-        #  print(f"Square Coords: ({x_coord}, {y_coord})")
+        print(f"Square Coords: ({x_coord}, {y_coord})")
 
         # find how far the center of the red object is from the center of the image
         #  x_error = img_center_x - x_coord

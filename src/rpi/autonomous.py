@@ -5,8 +5,11 @@ from functools import reduce
 import math
 import numpy as np
 from pid import PID, RotationalPID
+import queue
+from queue import Queue
 from sklearn.linear_model import LinearRegression
 from scipy.interpolate import splprep, splev
+import threading
 from time import time
 from timer import Timer
 from ultralytics import YOLO
@@ -37,41 +40,64 @@ class WSServer:
 
 class ImageHandler:
     image = None
-    is_listening = False
-    frame_number = 0
     square_coords = (None, None)
+    # the image queue should only hold one image at a time
+    image_queue = Queue(1)
+
+    is_listening = False
+    last_frame_time = 0
+
+    # process each image in a separate thread to avoid blocking. uses a queue that holds
+    # only the most recent image
+    @classmethod
+    def image_processer(cls):
+        while True:
+            img = cls.image_queue.get()
+            cls.square_coords = center_of_square(img)
+            cls.image = img
+            cls.image_queue.task_done()
 
     @classmethod
     async def image_handler(cls, uri):
+        # spawn a thread to process incoming images without blocking
+        threading.Thread(target=ImageHandler.image_processer, daemon=True).start()
+        # if a connection is dropped, keep trying to make another connection
         while True:
             async with websockets.connect(uri) as websocket:
                 while True:
                     if not cls.is_listening:
-                        await asyncio.sleep(0.01)
+                        await asyncio.sleep(0.001)
                         continue
+
                     try:
                         message = await websocket.recv()
+                        if message is None:
+                            await asyncio.sleep(0.001)
                     except websockets.ConnectionClosedError:
-                        await asyncio.sleep(0.01)
+                        await asyncio.sleep(0.001)
                         break
-                    if message is None:
-                        await asyncio.sleep(0.01)
-                        continue
 
+                    buffer = np.asarray(bytearray(message), dtype="uint8")
+                    img = cv2.imdecode(buffer, cv2.IMREAD_COLOR)
+                    # print(f"Frametime: {(time() - cls.last_frame_time) * 1000:.2f} ms")
+                    # cls.last_frame_time = time()
                     try:
-                        buffer = np.asarray(bytearray(message), dtype="uint8")
-                        if cls.frame_number % 10 == 0:
-                            cls.image = cv2.imdecode(buffer, cv2.IMREAD_COLOR)
-                            cls.square_coords = center_of_square(cls.image)
-                    except Exception as e:
-                        print(e)
+                        # if the image is still being processed, just drop the frame to
+                        # avoid building up any latency
+                        cls.image_queue.put_nowait(img)
+                    except queue.Full:
+                        pass
 
-                    await asyncio.sleep(0.01)
-            await asyncio.sleep(0.01)
+                    await asyncio.sleep(0.001)
+            await asyncio.sleep(0.001)
 
     @classmethod
     def pump_image(cls):
-        return cls.image
+        img = cls.image
+        square_coords = cls.square_coords
+        cls.square_coords = None, None
+        cls.image = None
+        return img, square_coords
 
     @classmethod
     def start_listening(cls):
@@ -131,7 +157,7 @@ class CoralTransplanter:
         self.square_coords = None
         self.prev_square_coords = []
 
-        self.NUM_VERIFICATIONS = 30
+        self.NUM_VERIFICATIONS = 10
         self.verify_count = 0
 
         # the roll and pitch anchor should always be on
@@ -177,7 +203,7 @@ class CoralTransplanter:
         roll_velocity = 0
         pitch_velocity = 0
 
-        img = ImageHandler.pump_image()
+        img, (square_x_coord, square_y_coord) = ImageHandler.pump_image()
         if img is None:
             print("No image")
             return (
@@ -194,8 +220,6 @@ class CoralTransplanter:
         img_center_x = img_width / 2
 
         print(self.current_step)
-        print(f"Yaw Set Point: {self.yaw_pid.set_point}")
-        print(f"Yaw: {yaw}")
 
         if self.current_step == CoralState.STARTING:
             self.depth_pid.update_set_point(self.moving_depth)
@@ -237,14 +261,10 @@ class CoralTransplanter:
                 print("Couldn't Find Square!")
                 return (0, 0, 0, 0, 0, 0, CoralReturn.FAILED)
 
-            start_time = time()
-            x_coord, y_coord = center_of_square(img, save_image=True)
-            print(f"Time Taken: {time() - start_time}")
             # may want to implement something to make sure the x and y coords are stable
             # to prevent the algorithm from latching onto some random red object
-
-            if x_coord is not None and y_coord is not None:
-                print(f"Found square at ({x_coord}, {y_coord})!")
+            if square_x_coord is not None and square_y_coord is not None:
+                print(f"Found square at ({square_x_coord}, {square_y_coord})!")
                 self.prev_square_coords = []
 
                 self.approaching_timer.stop()
@@ -257,10 +277,11 @@ class CoralTransplanter:
             yaw_velocity = self.yaw_pid.compute(yaw)
             y_velocity = -0.1
 
-            x_coord, y_coord = center_of_square(img, save_image=True)
             if self.verify_count < self.NUM_VERIFICATIONS:
-                if x_coord is not None and y_coord is not None:
-                    self.prev_square_coords.append((x_coord, y_coord, time()))
+                if square_x_coord is not None and square_y_coord is not None:
+                    self.prev_square_coords.append(
+                        (square_x_coord, square_y_coord, time())
+                    )
                 else:
                     self.prev_square_coords.append((None, None, time()))
                 self.verify_count += 1
@@ -299,15 +320,13 @@ class CoralTransplanter:
             EPSILON = 20
             z_velocity = self.depth_pid.compute(depth)
 
-            x_coord, y_coord = center_of_square(img)
-
-            if x_coord is not None and y_coord is not None:
+            if square_x_coord is not None and square_y_coord is not None:
                 self.estimating_timer.stop()
                 self.estimating_timer.reset()
-                self.prev_square_coords.append((x_coord, y_coord, time()))
-                yaw_velocity = self.square_x_pid.compute(x_coord)
+                self.prev_square_coords.append((square_x_coord, square_y_coord, time()))
+                yaw_velocity = self.square_x_pid.compute(square_x_coord)
 
-                if abs(img_center_x - x_coord) <= EPSILON:
+                if abs(img_center_x - square_x_coord) <= EPSILON:
                     self.prev_square_coords = []
                     print("Success!")
                     #  self.current_step = CoralState.ARRIVING_AT_SQUARE
@@ -348,13 +367,12 @@ class CoralTransplanter:
             #  yaw_velocity = self.yaw_pid.compute(yaw)
             y_velocity = 0.2
 
-            x_coord, y_coord = center_of_square(img)
-            if x_coord is not None and y_coord is not None:
-                print(f"Coords: ({x_coord}, {y_coord})")
+            if square_x_coord is not None and square_y_coord is not None:
+                print(f"Coords: ({square_x_coord}, {square_y_coord})")
                 center_of_square(img, save_image=True)
-                self.prev_square_coords.append((x_coord, y_coord, time()))
+                self.prev_square_coords.append((square_x_coord, square_y_coord, time()))
                 #  self.square_x_pid.update_set_point(img_center_x)
-                yaw_velocity = self.square_x_pid.compute(x_coord)
+                yaw_velocity = self.square_x_pid.compute(square_x_coord)
 
             # check if the square disappeared off the bottom of the screen
             elif len(self.prev_square_coords) > 10:
