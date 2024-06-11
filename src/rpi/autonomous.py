@@ -16,7 +16,9 @@ from ultralytics import YOLO
 import websockets
 
 
-SQUARE_DETECTION_MODEL = YOLO("square_detection_ncnn_model", task="detect")
+SQUARE_DETECTION_MODEL = YOLO(
+    "square_detection_ncnn_model", task="detect", verbose="False"
+)
 
 
 class WSServer:
@@ -53,7 +55,7 @@ class ImageHandler:
     def image_processer(cls):
         while True:
             img = cls.image_queue.get()
-            cls.square_coords = center_of_square(img)
+            cls.square_coords = center_of_square(img, save_image=True)
             cls.image = img
             cls.image_queue.task_done()
 
@@ -65,10 +67,6 @@ class ImageHandler:
         while True:
             async with websockets.connect(uri) as websocket:
                 while True:
-                    if not cls.is_listening:
-                        await asyncio.sleep(0.001)
-                        continue
-
                     try:
                         message = await websocket.recv()
                         if message is None:
@@ -76,6 +74,10 @@ class ImageHandler:
                     except websockets.ConnectionClosedError:
                         await asyncio.sleep(0.001)
                         break
+
+                    if not cls.is_listening:
+                        await asyncio.sleep(0.001)
+                        continue
 
                     buffer = np.asarray(bytearray(message), dtype="uint8")
                     img = cv2.imdecode(buffer, cv2.IMREAD_COLOR)
@@ -86,6 +88,7 @@ class ImageHandler:
                         # avoid building up any latency
                         cls.image_queue.put_nowait(img)
                     except queue.Full:
+                        print("Full!")
                         pass
 
                     await asyncio.sleep(0.001)
@@ -186,7 +189,7 @@ class CoralTransplanter:
         )
 
         self.approaching_timer = Timer()
-        self.estimation_timer = Timer()
+        self.estimating_timer = Timer()
 
         self.current_step = CoralState.STARTING
         #  self.current_step = CoralState.APPROACHING
@@ -198,8 +201,8 @@ class CoralTransplanter:
         y_velocity = 0
         z_velocity = 0
         yaw_velocity = 0
-        #  roll_velocity = self.roll_pid.compute(roll) if self.roll_anchor else 0
-        #  pitch_velocity = self.pitch_pid.compute(pitch) if self.pitch_anchor else 0
+        roll_velocity = self.roll_pid.compute(roll) if self.roll_anchor else 0
+        pitch_velocity = self.pitch_pid.compute(pitch) if self.pitch_anchor else 0
         roll_velocity = 0
         pitch_velocity = 0
 
@@ -220,13 +223,16 @@ class CoralTransplanter:
         img_center_x = img_width / 2
 
         print(self.current_step)
+        print(f"Current Time: {time()}")
 
         if self.current_step == CoralState.STARTING:
-            self.depth_pid.update_set_point(self.moving_depth)
+            #  self.depth_pid.update_set_point(self.moving_depth)
+            self.depth_pid.update_set_point(depth)
             print(f"Moving Depth: {self.moving_depth}")
             # keep the ROV's yaw locked
             self.yaw_pid.update_set_point(yaw)
-            self.current_step = CoralState.MOVING_UP
+            #  self.current_step = CoralState.MOVING_UP
+            self.current_step = CoralState.APPROACHING
             print("Moving on Next Step: Moving Up")
 
         # step 1 is to move up to a few centimeters above the red square
@@ -250,16 +256,16 @@ class CoralTransplanter:
         # Result: Verify the square's existence
         elif self.current_step == CoralState.APPROACHING:
             print(f"Roll Velocity: {roll_velocity} Pitch Velocity: {pitch_velocity}")
-            #  z_velocity = self.depth_pid.compute(depth)
-            #  yaw_velocity = self.yaw_pid.compute(yaw)
-            y_velocity = 0.2
+            z_velocity = self.depth_pid.compute(depth)
+            yaw_velocity = self.yaw_pid.compute(yaw)
+            y_velocity = 0.0
 
             # if the square can't be found after moving for 15 seconds, just give up
-            print(self.approaching_timer.read())
-            if self.approaching_timer.read() > 15:
-                self.curent_step = CoralState.FAILURE
-                print("Couldn't Find Square!")
-                return (0, 0, 0, 0, 0, 0, CoralReturn.FAILED)
+            #  print(self.approaching_timer.read())
+            #  if self.approaching_timer.read() > 30:
+            #      self.curent_step = CoralState.FAILURE
+            #      print("Couldn't Find Square!")
+            #      return (0, 0, 0, 0, 0, 0, CoralReturn.FAILED)
 
             # may want to implement something to make sure the x and y coords are stable
             # to prevent the algorithm from latching onto some random red object
@@ -268,7 +274,8 @@ class CoralTransplanter:
                 self.prev_square_coords = []
 
                 self.approaching_timer.stop()
-                self.current_step = CoralState.VERIFYING_SQUARE
+                #  self.current_step = CoralState.VERIFYING_SQUARE
+                self.current_step = CoralState.CENTERING_SQUARE
                 print("Moving on Next Step: Verifying Square")
         # step 3 is to make sure the red square that the ROV detected is actually the
         # square
@@ -286,13 +293,13 @@ class CoralTransplanter:
                     self.prev_square_coords.append((None, None, time()))
                 self.verify_count += 1
             else:
-                coords_without_none = filter(
-                    lambda c: c[0] is not None and c[1] is not None,
-                    self.prev_square_coords,
-                )
-                coords_np_array = np.array(self.prev_square_coords)
-                std_dev_x = np.std(coords_np_array, axis=0)
-                std_dev_y = np.std(coords_np_array, axis=1)
+                #  coords_without_none = filter(
+                #      lambda c: c[0] is not None and c[1] is not None,
+                #      self.prev_square_coords,
+                #  )
+                #  coords_np_array = np.array(self.prev_square_coords)
+                #  std_dev_x = np.std(coords_np_array, axis=0)
+                #  std_dev_y = np.std(coords_np_array, axis=1)
 
                 num_not_found = 0
                 for coords in self.prev_square_coords:
@@ -303,9 +310,10 @@ class CoralTransplanter:
                 # over 90% of the time, and vary too much in its location (given that
                 # the ROV is supposed to be stationary)
                 if (
-                    num_not_found > len(self.prev_square_coords) * 0.1
-                    or std_dev_x > 50
-                    or std_dev_y > 50
+                    num_not_found
+                    > len(self.prev_square_coords) * 0.2
+                    #  or std_dev_x > 50
+                    #  or std_dev_y > 50
                 ):
                     self.verify_count = 0
                     self.current_step = CoralState.APPROACHING
@@ -317,6 +325,7 @@ class CoralTransplanter:
 
         # step 4 is to center the square in the ROV's vision
         elif self.current_step == CoralState.CENTERING_SQUARE:
+            print(f"X Coord: {square_x_coord} Y Coord: {square_y_coord}")
             EPSILON = 20
             z_velocity = self.depth_pid.compute(depth)
 
@@ -325,37 +334,38 @@ class CoralTransplanter:
                 self.estimating_timer.reset()
                 self.prev_square_coords.append((square_x_coord, square_y_coord, time()))
                 yaw_velocity = self.square_x_pid.compute(square_x_coord)
+                print(f"Yaw Velocity: {yaw_velocity}")
 
                 if abs(img_center_x - square_x_coord) <= EPSILON:
                     self.prev_square_coords = []
                     print("Success!")
-                    #  self.current_step = CoralState.ARRIVING_AT_SQUARE
-                    self.current_step = CoralState.FINISHED
+                    self.current_step = CoralState.ARRIVING_AT_SQUARE
+                    #  self.current_step = CoralState.FINISHED
 
             # it's possible the square might be temporarily invisible,if there's enough
             # data points to work with, use a linear regression to estimate the position
             # of the square
-            elif len(self.prev_square_coords) > 3 and self.estimating_timer.read() < 1:
-                if self.estimating_timer.stopped:
-                    self.estimating_timer.start()
-                prev_x_coords = np.array(
-                    [c[0] for c in self.prev_square_coords]
-                ).reshape((-1, 1))
-                prev_times = [c[2] for c in self.prev_square_coords]
-                print(f"X Coords: {prev_x_coords}")
-                print(f"Times: {prev_times}")
-                # performs a linear regression on the data to approximate a function
-                # for the x coordinate given a time
-                model = LinearRegression().fit(prev_x_coords, prev_times)
-                # estimates the x coord given the current time
-                approx_x_coord = model.coef_ * time.time() + model.intercept_
-                yaw_velocity = self.square_x_pid.compute(approx_x_coord)
+            #  elif len(self.prev_square_coords) > 3 and self.estimating_timer.read() < 1:
+            #      if self.estimating_timer.stopped:
+            #          self.estimating_timer.start()
+            #      prev_x_coords = np.array(
+            #          [c[0] for c in self.prev_square_coords]
+            #      ).reshape((-1, 1))
+            #      prev_times = [c[2] for c in self.prev_square_coords]
+            #      print(f"X Coords: {prev_x_coords}")
+            #      print(f"Times: {prev_times}")
+            #      # performs a linear regression on the data to approximate a function
+            #      # for the x coordinate given a time
+            #      model = LinearRegression().fit(prev_x_coords, prev_times)
+            #      # estimates the x coord given the current time
+            #      approx_x_coord = model.coef_ * time() + model.intercept_
+            #      yaw_velocity = self.square_x_pid.compute(approx_x_coord)
 
             # if there's not enough data points to work with, go back and verify the
             # square's existence
-            else:
-                self.prev_square_coords = []
-                self.current_step = CoralState.VERIFYING_SQUARE
+            #  else:
+            #      self.prev_square_coords = []
+            #      self.current_step = CoralState.VERIFYING_SQUARE
 
         # step 6 is to continue approaching the square, keeping the square centered
         # horizontally in the ROV's vision, until the square falls off the bottom of the
@@ -369,7 +379,6 @@ class CoralTransplanter:
 
             if square_x_coord is not None and square_y_coord is not None:
                 print(f"Coords: ({square_x_coord}, {square_y_coord})")
-                center_of_square(img, save_image=True)
                 self.prev_square_coords.append((square_x_coord, square_y_coord, time()))
                 #  self.square_x_pid.update_set_point(img_center_x)
                 yaw_velocity = self.square_x_pid.compute(square_x_coord)
@@ -395,7 +404,7 @@ class CoralTransplanter:
             # if there haven't already been 10 recorded coordinates, go back and verify that the square exists
             else:
                 print("Where'd it go?")
-                self.current_step = CoralState.VERIFYING_SQUARE
+                #  self.current_step = CoralState.VERIFYING_SQUARE
 
         # after the red square is no longer visible, the ROV should continue moving
         # so that the coral sample aligns with the square
@@ -444,7 +453,9 @@ class CoralTransplanter:
 
 # Find the coordinates of the center of the red square using YOLO
 def center_of_square(img: np.ndarray, save_image=False) -> (int, int):
-    results = SQUARE_DETECTION_MODEL.predict(source=img, save=False, imgsz=256)
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    gray = cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
+    results = SQUARE_DETECTION_MODEL.predict(source=gray, save=False, imgsz=256)
     if len(results) > 0 and len(results[0]) > 0:
         x1, y1, x2, y2 = [round(tensor.item()) for tensor in results[0].boxes.xyxy[0]]
         center_x = round((x2 + x1) / 2)

@@ -108,7 +108,6 @@ async def main_server():
         external_temp = depth_sensor.temperature() if depth_sensor is not None else None
         cpu_temp = None
         depth = depth_sensor.depth() if depth_sensor is not None else None
-        yaw, roll, pitch = (0, 0, 0)
         yaw = imu.euler[0] if imu is not None else None
         roll = imu.euler[1] if imu is not None else None
         pitch = imu.euler[2] - 90 if imu is not None else None
@@ -280,6 +279,11 @@ async def main_server():
         if photo_trigger:
             img = ImageHandler.pump_image()
             cv2.imwrite(f"test_images/{time()}.jpg", img)
+
+        #  if current_12V > 25:
+        #      motors.speed_limit = 0.8
+        #  else:
+        #      motors.speed_limit = 1.0
 
         # run the motors!
         motors.drive_motors(
