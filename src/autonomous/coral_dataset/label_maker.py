@@ -147,7 +147,7 @@ def main():
     model = YOLO("../model_small_ncnn_model")
     global img, refPt
     i = 1
-    while i < 513:
+    while i <= 31:
         print(f"Image Number: {i}")
         refPt = []
         img = cv2.imread(f"train/new_images/new_image{i}.jpg")
