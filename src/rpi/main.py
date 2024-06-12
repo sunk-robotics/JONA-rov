@@ -11,6 +11,7 @@ from orientation import quaternion_to_euler
 from pid import PID, RotationalPID
 from power_monitoring import PowerMonitor
 from time import time
+import threading
 import websockets
 from ws_server import WSServer
 
@@ -21,6 +22,9 @@ destable_thresh = 0.5
 
 async def main_server():
     motors = Motors()
+    # each motors needs to receive a neutral signal for at least two
+    # seconds, otherwise they won't work
+    await asyncio.sleep(2)
 
     try:
         depth_sensor = MS5837_02BA(1)
@@ -95,7 +99,6 @@ async def main_server():
     prev_roll_velocity = 0
     prev_pitch_velocity = 0
 
-    #  ImageHandler.start_listening()
     print("Server started!")
     while True:
         joystick_data = WSServer.pump_joystick_data()
@@ -111,9 +114,9 @@ async def main_server():
         yaw = imu.euler[0] if imu is not None else None
         roll = imu.euler[1] if imu is not None else None
         pitch = imu.euler[2] - 90 if imu is not None else None
-        x_accel = imu.linear_acceleration[0]
-        y_accel = imu.linear_acceleration[1]
-        z_accel = imu.linear_acceleration[2]
+        x_accel = imu.linear_acceleration[0] if imu is not None else None
+        y_accel = imu.linear_acceleration[1] if imu is not None else None
+        z_accel = imu.linear_acceleration[2] if imu is not None else None
         voltage_5V = power_monitor.voltage_5V() if power_monitor is not None else None
         current_5V = power_monitor.current_5V() if power_monitor is not None else None
         voltage_12V = power_monitor.voltage_12V() if power_monitor is not None else None
@@ -269,15 +272,15 @@ async def main_server():
             ) = coral_transplanter.next_step(depth, yaw, roll, pitch)
             if return_code == CoralReturn.FINISHED:
                 is_autonomous = False
-                ImageHandler.stop_listening()
+                #  ImageHandler.stop_listening()
                 print("Autonomous task completed!")
             elif return_code == CoralReturn.FAILED:
                 is_autonomous = False
-                ImageHandler.stop_listening()
+                #  ImageHandler.stop_listening()
                 print("Autonomous task failed! ;-;")
 
         if photo_trigger:
-            img = ImageHandler.pump_image()
+            img, _ = ImageHandler.pump_image()
             cv2.imwrite(f"test_images/{time()}.jpg", img)
 
         #  if current_12V > 25:
@@ -375,11 +378,9 @@ async def main_server():
         if autonomous_toggle and not prev_autonomous_toggle:
             if is_autonomous:
                 is_autonomous = False
-                ImageHandler.stop_listening()
                 print("Autonomous mode disabled!")
             else:
                 is_autonomous = True
-                ImageHandler.start_listening()
                 coral_transplanter = CoralTransplanter(depth, yaw)
                 print("Autonomous mode enabled!")
 
@@ -395,13 +396,21 @@ async def main_server():
 
 def main():
     loop = asyncio.get_event_loop()
-    auto_ws_server = websockets.serve(
-        autonomous.WSServer.handler, "0.0.0.0", 3009, ping_interval=None
-    )
+    #  auto_ws_server = websockets.serve(
+    #      autonomous.WSServer.handler, "0.0.0.0", 3009, ping_interval=None
+    #  )
     ws_server = websockets.serve(WSServer.handler, "0.0.0.0", 8765, ping_interval=None)
     asyncio.ensure_future(ws_server)
-    asyncio.ensure_future(auto_ws_server)
-    asyncio.ensure_future(ImageHandler.image_handler("ws://192.168.1.9:3000"))
+    #  asyncio.ensure_future(auto_ws_server)
+    #  asyncio.ensure_future(ImageHandler.image_handler("ws://192.168.1.9:3000"))
+    threading.Thread(target=ImageHandler.image_processer, daemon=True).start()
+    threading.Thread(
+        target=ImageHandler.image_receiver, args=("ws://192.168.1.9:3000",), daemon=True
+    ).start()
+
+    #  threading.Thread(
+    #      target=ImageHandler.image_handler, args=("ws://192.168.1.9:3000",), daemon=True
+    #  ).start()
     asyncio.ensure_future(main_server())
     loop.run_forever()
 

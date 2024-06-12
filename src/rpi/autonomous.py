@@ -8,16 +8,18 @@ from pid import PID, RotationalPID
 import queue
 from queue import Queue
 from sklearn.linear_model import LinearRegression
+from sklearn.preprocessing import PolynomialFeatures
 from scipy.interpolate import splprep, splev
 import threading
-from time import time
+from time import time, sleep
 from timer import Timer
 from ultralytics import YOLO
 import websockets
+import websockets.sync.client
 
 
 SQUARE_DETECTION_MODEL = YOLO(
-    "square_detection_ncnn_model", task="detect", verbose="False"
+    "square_detection_ncnn_model", task="detect", verbose=False
 )
 
 
@@ -46,7 +48,6 @@ class ImageHandler:
     # the image queue should only hold one image at a time
     image_queue = Queue(1)
 
-    is_listening = False
     last_frame_time = 0
 
     # process each image in a separate thread to avoid blocking. uses a queue that holds
@@ -54,45 +55,36 @@ class ImageHandler:
     @classmethod
     def image_processer(cls):
         while True:
-            img = cls.image_queue.get()
-            cls.square_coords = center_of_square(img, save_image=True)
+            message = cls.image_queue.get()
+            try:
+                buffer = np.asarray(bytearray(message), dtype="uint8")
+                img = cv2.imdecode(buffer, cv2.IMREAD_COLOR)
+            except Exception as e:
+                print(f"Fuck: {e}")
+                continue
+            gray = cv2.cvtColor(
+                cv2.cvtColor(img, cv2.COLOR_BGR2GRAY), cv2.COLOR_GRAY2BGR
+            )
+            cls.square_coords = center_of_square(gray, save_image=False)
             cls.image = img
             cls.image_queue.task_done()
+
+    @classmethod
+    def image_receiver(cls, uri):
+        with websockets.sync.client.connect(uri) as websocket:
+            for message in websocket:
+                try:
+                    cls.image_queue.put_nowait(message)
+                except queue.Full:
+                    pass
 
     @classmethod
     async def image_handler(cls, uri):
         # spawn a thread to process incoming images without blocking
         threading.Thread(target=ImageHandler.image_processer, daemon=True).start()
-        # if a connection is dropped, keep trying to make another connection
-        while True:
-            async with websockets.connect(uri) as websocket:
-                while True:
-                    try:
-                        message = await websocket.recv()
-                        if message is None:
-                            await asyncio.sleep(0.001)
-                    except websockets.ConnectionClosedError:
-                        await asyncio.sleep(0.001)
-                        break
-
-                    if not cls.is_listening:
-                        await asyncio.sleep(0.001)
-                        continue
-
-                    buffer = np.asarray(bytearray(message), dtype="uint8")
-                    img = cv2.imdecode(buffer, cv2.IMREAD_COLOR)
-                    # print(f"Frametime: {(time() - cls.last_frame_time) * 1000:.2f} ms")
-                    # cls.last_frame_time = time()
-                    try:
-                        # if the image is still being processed, just drop the frame to
-                        # avoid building up any latency
-                        cls.image_queue.put_nowait(img)
-                    except queue.Full:
-                        print("Full!")
-                        pass
-
-                    await asyncio.sleep(0.001)
-            await asyncio.sleep(0.001)
+        threading.Thread(
+            target=ImageHandler.image_receiver, args=(uri,), daemon=True
+        ).start()
 
     @classmethod
     def pump_image(cls):
@@ -101,14 +93,6 @@ class ImageHandler:
         cls.square_coords = None, None
         cls.image = None
         return img, square_coords
-
-    @classmethod
-    def start_listening(cls):
-        cls.is_listening = True
-
-    @classmethod
-    def stop_listening(cls):
-        cls.is_listening = False
 
 
 # the steps in the process of transplanting the brain coral, broken down into an enum
@@ -143,7 +127,7 @@ class CoralTransplanter:
         # the ROV should be 75 cm above the pool floor when searching for the square
         self.LOCATING_HEIGHT = 0.75
         # the ROV should be 8 cm above the height of the square when moving towards it
-        self.MOVING_HEIGHT = self.SQUARE_HEIGHT + 0.06
+        self.MOVING_HEIGHT = self.SQUARE_HEIGHT + 0.1
 
         # after the red square is no longer in the ROV's vision, the ROV should continue
         # moving for another second
@@ -182,7 +166,7 @@ class CoralTransplanter:
         )
 
         self.square_x_pid = PID(
-            proportional_gain=-0.0001, integral_gain=0, derivative_gain=0
+            proportional_gain=-0.003, integral_gain=0, derivative_gain=0
         )
         self.square_y_pid = PID(
             proportional_gain=0.1, integral_gain=0, derivative_gain=0
@@ -192,7 +176,6 @@ class CoralTransplanter:
         self.estimating_timer = Timer()
 
         self.current_step = CoralState.STARTING
-        #  self.current_step = CoralState.APPROACHING
 
     def next_step(
         self, depth: float, yaw: float, roll: float, pitch: float
@@ -221,23 +204,23 @@ class CoralTransplanter:
 
         img_height, img_width = img.shape[:2]
         img_center_x = img_width / 2
+        self.square_x_pid.update_set_point(img_center_x)
 
         print(self.current_step)
         print(f"Current Time: {time()}")
 
         if self.current_step == CoralState.STARTING:
-            #  self.depth_pid.update_set_point(self.moving_depth)
-            self.depth_pid.update_set_point(depth)
+            self.depth_pid.update_set_point(self.moving_depth)
             print(f"Moving Depth: {self.moving_depth}")
             # keep the ROV's yaw locked
             self.yaw_pid.update_set_point(yaw)
-            #  self.current_step = CoralState.MOVING_UP
-            self.current_step = CoralState.APPROACHING
+            self.current_step = CoralState.MOVING_UP
             print("Moving on Next Step: Moving Up")
 
         # step 1 is to move up to a few centimeters above the red square
         elif self.current_step == CoralState.MOVING_UP:
             z_velocity = self.depth_pid.compute(depth)
+            print(f"Yaw: {yaw} Set Point: {self.yaw_pid.set_point}")
             yaw_velocity = self.yaw_pid.compute(yaw)
 
             # the ROV should be within 1 cm of the target depth
@@ -325,14 +308,16 @@ class CoralTransplanter:
 
         # step 4 is to center the square in the ROV's vision
         elif self.current_step == CoralState.CENTERING_SQUARE:
-            print(f"X Coord: {square_x_coord} Y Coord: {square_y_coord}")
+            #  print(f"X Coord: {square_x_coord} Y Coord: {square_y_coord}")
             EPSILON = 20
             z_velocity = self.depth_pid.compute(depth)
+            y_velocity = -0.1
 
             if square_x_coord is not None and square_y_coord is not None:
                 self.estimating_timer.stop()
                 self.estimating_timer.reset()
                 self.prev_square_coords.append((square_x_coord, square_y_coord, time()))
+                print(f"X: {square_x_coord} Set Point: {self.square_x_pid.set_point}")
                 yaw_velocity = self.square_x_pid.compute(square_x_coord)
                 print(f"Yaw Velocity: {yaw_velocity}")
 
@@ -375,7 +360,7 @@ class CoralTransplanter:
 
             z_velocity = self.depth_pid.compute(depth)
             #  yaw_velocity = self.yaw_pid.compute(yaw)
-            y_velocity = 0.2
+            y_velocity = 0.4
 
             if square_x_coord is not None and square_y_coord is not None:
                 print(f"Coords: ({square_x_coord}, {square_y_coord})")
@@ -385,19 +370,22 @@ class CoralTransplanter:
 
             # check if the square disappeared off the bottom of the screen
             elif len(self.prev_square_coords) > 10:
-                prev_y_coords = np.array(
-                    [c[1] for c in self.prev_square_coords]
+                prev_y_coords = np.array([c[1] for c in self.prev_square_coords])
+                prev_times = np.array(
+                    [c[2] for c in self.prev_square_coords], dtype="double"
                 ).reshape((-1, 1))
-                prev_times = [c[2] for c in self.prev_square_coords]
                 print(f"Y Coords: {prev_y_coords}")
                 print(f"Times: {prev_times}")
                 # performs a linear regression on the data to approximate a function
                 # for the y coordinate given a time
-                model = LinearRegression().fit(prev_y_coords, prev_times)
+                model = LinearRegression().fit(prev_times, prev_y_coords)
                 # estimates the x coord given the current time
+                print(f"Coefficient: {model.coef_} Intercept: {model.intercept_}")
                 predicted_y_coord = model.coef_ * time() + model.intercept_
+                print(f"Predicted Y Coord: {predicted_y_coord}")
                 #  predicted_y_coord = model.predict(time())
                 if predicted_y_coord > img_height - EPSILON:
+                    print("I think it's gone")
                     self.start_time = time()
                     self.current_step = CoralState.MOVING_BLINDLY
 
@@ -455,8 +443,11 @@ class CoralTransplanter:
 def center_of_square(img: np.ndarray, save_image=False) -> (int, int):
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     gray = cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
-    results = SQUARE_DETECTION_MODEL.predict(source=gray, save=False, imgsz=256)
+    results = SQUARE_DETECTION_MODEL.predict(
+        source=gray, save=False, imgsz=256, verbose=False
+    )
     if len(results) > 0 and len(results[0]) > 0:
+        print("Found square!")
         x1, y1, x2, y2 = [round(tensor.item()) for tensor in results[0].boxes.xyxy[0]]
         center_x = round((x2 + x1) / 2)
         center_y = round((y2 + y1) / 2)

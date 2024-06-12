@@ -25,16 +25,13 @@ class Motors:
             7: 11,
         }
         self.motor_velocities = [0, 0, 0, 0, 0, 0, 0, 0]
-        self.speed_limit = 0.8
+        self.speed_limit = 0.7
         # set the correct pulse range (1100 microseconds to 1900 microseconds)
         for motor_num in range(self.num_motors):
             self.kit.servo[self.motor_channel_table[motor_num]].set_pulse_width_range(
                 1100, 1900
             )
         self.stop_all()
-        # each motors needs to receive a neutral signal for at least two
-        # seconds, otherwise they won't work
-        time.sleep(2)
 
     def drive_motor(self, motor_num: int, velocity: float):
         # maps the velocity from -1..1 where -1 is full throttle reverse and

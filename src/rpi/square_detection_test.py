@@ -24,7 +24,7 @@ class ImageHandler:
     def image_processer(cls):
         while True:
             img = cls.image_queue.get()
-            cls.square_coords = center_of_square(img)
+            cls.square_coords = center_of_square(img, save_image=True)
             cls.image = img
             cls.image_queue.task_done()
 
