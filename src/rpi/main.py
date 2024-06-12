@@ -26,24 +26,24 @@ async def main_server():
     # seconds, otherwise they won't work
     await asyncio.sleep(2)
 
+    depth_sensor = None
     try:
         depth_sensor = MS5837_02BA(1)
         depth_sensor.init()
     except OSError:
         print("Unable to connect to depth sensor!")
-        depth_sensor = None
 
+    imu = None
     try:
         imu = adafruit_bno055.BNO055_I2C(board.I2C())
     except OSError:
         print("Unable to connect IMU!")
-        imu = None
 
+    power_monitor = None
     try:
         power_monitor = PowerMonitor()
     except OSError:
         print("Unable to connect to power monitor!")
-        power_monitor = None
 
     depth_anchor = False
     # adjust the y-velocity to have the ROV remain at a constant depth
@@ -107,7 +107,6 @@ async def main_server():
 
         # read sensor information
         internal_temp = imu.temperature if imu is not None else None
-        internal_temp = 37
         external_temp = depth_sensor.temperature() if depth_sensor is not None else None
         cpu_temp = None
         depth = depth_sensor.depth() if depth_sensor is not None else None
