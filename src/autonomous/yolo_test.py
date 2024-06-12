@@ -6,7 +6,7 @@ import glob
 
 # Load a YOLOv8n PyTorch model
 #  model = YOLO("best.pt")
-model = YOLO("model_small_ncnn_model")
+model = YOLO("better_ncnn_model")
 #  model.export(format="ncnn")
 
 for filepath in glob.iglob("coral_dataset/train/new_images/*.jpg"):
