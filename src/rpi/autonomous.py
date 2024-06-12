@@ -47,6 +47,7 @@ class ImageHandler:
     square_coords = (None, None)
     # the image queue should only hold one image at a time
     image_queue = Queue(1)
+    is_listening = False
 
     last_frame_time = 0
 
@@ -56,6 +57,9 @@ class ImageHandler:
     def image_processer(cls):
         while True:
             message = cls.image_queue.get()
+            if not cls.is_listening:
+                cls.image_queue.task_done()
+                continue
             try:
                 buffer = np.asarray(bytearray(message), dtype="uint8")
                 img = cv2.imdecode(buffer, cv2.IMREAD_COLOR)
@@ -71,12 +75,16 @@ class ImageHandler:
 
     @classmethod
     def image_receiver(cls, uri):
-        with websockets.sync.client.connect(uri) as websocket:
-            for message in websocket:
-                try:
-                    cls.image_queue.put_nowait(message)
-                except queue.Full:
-                    pass
+        while True:
+            try:
+                with websockets.sync.client.connect(uri) as websocket:
+                    for message in websocket:
+                        try:
+                            cls.image_queue.put_nowait(message)
+                        except queue.Full:
+                            pass
+            except OSError:
+                sleep(0.5)
 
     @classmethod
     async def image_handler(cls, uri):
@@ -93,6 +101,14 @@ class ImageHandler:
         cls.square_coords = None, None
         cls.image = None
         return img, square_coords
+
+    @classmethod
+    def start_listening(cls):
+        cls.is_listening = True
+
+    @classmethod
+    def stop_listening(cls):
+        cls.is_listening = False
 
 
 # the steps in the process of transplanting the brain coral, broken down into an enum
@@ -374,14 +390,18 @@ class CoralTransplanter:
                 prev_times = np.array(
                     [c[2] for c in self.prev_square_coords], dtype="double"
                 ).reshape((-1, 1))
+                prev_times_transformed = PolynomialFeatures(
+                    degree=2, include_bias=False
+                ).fit_transform(prev_times)
                 print(f"Y Coords: {prev_y_coords}")
                 print(f"Times: {prev_times}")
                 # performs a linear regression on the data to approximate a function
                 # for the y coordinate given a time
-                model = LinearRegression().fit(prev_times, prev_y_coords)
+                model = LinearRegression().fit(prev_times_transformed, prev_y_coords)
                 # estimates the x coord given the current time
                 print(f"Coefficient: {model.coef_} Intercept: {model.intercept_}")
-                predicted_y_coord = model.coef_ * time() + model.intercept_
+                time_transformed = time() ** 2
+                predicted_y_coord = model.coef_ * time_transformed + model.intercept_
                 print(f"Predicted Y Coord: {predicted_y_coord}")
                 #  predicted_y_coord = model.predict(time())
                 if predicted_y_coord > img_height - EPSILON:

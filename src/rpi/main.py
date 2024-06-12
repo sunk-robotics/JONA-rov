@@ -272,11 +272,11 @@ async def main_server():
             ) = coral_transplanter.next_step(depth, yaw, roll, pitch)
             if return_code == CoralReturn.FINISHED:
                 is_autonomous = False
-                #  ImageHandler.stop_listening()
+                ImageHandler.stop_listening()
                 print("Autonomous task completed!")
             elif return_code == CoralReturn.FAILED:
                 is_autonomous = False
-                #  ImageHandler.stop_listening()
+                ImageHandler.stop_listening()
                 print("Autonomous task failed! ;-;")
 
         if photo_trigger:
@@ -377,9 +377,11 @@ async def main_server():
         # toggle the autonomous control
         if autonomous_toggle and not prev_autonomous_toggle:
             if is_autonomous:
+                ImageHandler.stop_listening()
                 is_autonomous = False
                 print("Autonomous mode disabled!")
             else:
+                ImageHandler.start_listening()
                 is_autonomous = True
                 coral_transplanter = CoralTransplanter(depth, yaw)
                 print("Autonomous mode enabled!")
