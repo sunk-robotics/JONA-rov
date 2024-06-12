@@ -447,7 +447,6 @@ def center_of_square(img: np.ndarray, save_image=False) -> (int, int):
         source=gray, save=False, imgsz=256, verbose=False
     )
     if len(results) > 0 and len(results[0]) > 0:
-        print("Found square!")
         x1, y1, x2, y2 = [round(tensor.item()) for tensor in results[0].boxes.xyxy[0]]
         center_x = round((x2 + x1) / 2)
         center_y = round((y2 + y1) / 2)
