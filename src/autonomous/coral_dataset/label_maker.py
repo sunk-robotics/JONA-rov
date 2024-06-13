@@ -3,6 +3,7 @@ import math
 import numpy as np
 from scipy.interpolate import splprep, splev
 from ultralytics import YOLO
+import glob
 
 # initialize the list of reference points and boolean indicating
 # whether cropping is being performed or not
@@ -146,11 +147,10 @@ def get_contour(img: np.ndarray) -> (int, int):
 def main():
     model = YOLO("../model_small_ncnn_model")
     global img, refPt
-    i = 1
-    while i <= 31:
-        print(f"Image Number: {i}")
+    count = 1
+    while count < 1000:
         refPt = []
-        img = cv2.imread(f"train/new_images/new_image{i}.jpg")
+        img = cv2.imread(f"test_images_jonas/jonas_image{count}.jpg")
 
         img_width = img.shape[1]
         img_height = img.shape[0]
@@ -212,26 +212,28 @@ def main():
 
             if label == "":
                 print("No label!")
+                count += 1
                 continue
 
-            cv2.imwrite(f"train/images/new_image{i}.jpg", gray_img)
+            cv2.imwrite(f"new_images/jonas_image{count}.jpg", gray_img)
             print(f"Label: {label}")
-            with open(f"train/labels/new_image{i}.txt", "w") as f:
+            with open(f"new_labels/jonas_image{count}.txt", "w") as f:
                 f.writelines(label)
             label = ""
-            i += 1
+            count += 1
             continue
 
         elif key == ord("b"):
             print("Going back to last image")
-            i -= 1
+            if count > 0:
+                count -= 1
             continue
         elif key == ord("q"):
             print("Qutting!")
             break
         elif key == ord("d"):
             print("No red square! Moving onto next image")
-            i += 1
+            count += 1
             continue
 
     cv2.destroyAllWindows()
