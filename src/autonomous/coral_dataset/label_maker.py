@@ -150,7 +150,7 @@ def main():
     count = 1
     while count < 1000:
         refPt = []
-        img = cv2.imread(f"test_images_jonas/jonas_image{count}.jpg")
+        img = cv2.imread(f"test_images_matty/matty_image{count}.jpg")
 
         img_width = img.shape[1]
         img_height = img.shape[0]
@@ -215,9 +215,9 @@ def main():
                 count += 1
                 continue
 
-            cv2.imwrite(f"new_images/jonas_image{count}.jpg", gray_img)
+            cv2.imwrite(f"new_images/matty_image{count}.jpg", gray_img)
             print(f"Label: {label}")
-            with open(f"new_labels/jonas_image{count}.txt", "w") as f:
+            with open(f"new_labels/matty_image{count}.txt", "w") as f:
                 f.writelines(label)
             label = ""
             count += 1
