@@ -6,10 +6,10 @@ import glob
 
 # Load a YOLOv8n PyTorch model
 #  model = YOLO("best.pt")
-model = YOLO("better_ncnn_model")
+model = YOLO("even_better_ncnn_model", task="detect")
 #  model.export(format="ncnn")
 
-for filepath in glob.iglob("coral_dataset/train/new_images/*.jpg"):
+for filepath in glob.iglob("coral_dataset/valid/images/*.jpg"):
     img = cv2.imread(filepath)
     img_width = img.shape[1]
     img_height = img.shape[0]
@@ -17,7 +17,7 @@ for filepath in glob.iglob("coral_dataset/train/new_images/*.jpg"):
     cv2.imwrite("ooga.jpg", gray)
     gray = cv2.imread("ooga.jpg")
 
-    results = model.predict(source=gray, save=False, imgsz=256)
+    results = model.predict(source=gray, save=False, imgsz=320)
     if len(results) > 0 and len(results[0]) > 0:
         x1, y1, x2, y2 = [round(tensor.item()) for tensor in results[0].boxes.xyxy[0]]
         print(x1, y2, x2, y2)
