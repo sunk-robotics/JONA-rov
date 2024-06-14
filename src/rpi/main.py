@@ -288,8 +288,14 @@ async def main_server():
                 print("Autonomous task failed! ;-;")
 
         if photo_trigger:
+            ImageHandler.start_listening()
             img, _ = ImageHandler.pump_image()
-            cv2.imwrite(f"test_images/{time()}.jpg", img)
+            if img is not None:
+                filename = f"test_images/{time()}.jpg"
+                cv2.imwrite(filename, img)
+                print(f"Saved image to {filename}")
+            else:
+                print("Unable to save image!")
 
         #  if current_12V > 25:
         #      motors.speed_limit = 0.8

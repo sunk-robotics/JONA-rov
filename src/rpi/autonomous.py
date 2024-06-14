@@ -18,9 +18,11 @@ import websockets
 import websockets.sync.client
 
 
-SQUARE_DETECTION_MODEL = YOLO(
-    "square_detection_ncnn_model", task="detect", verbose=False
-)
+#  SQUARE_DETECTION_MODEL = YOLO(
+#      "square_detection_ncnn_model", task="detect", verbose=False
+#  )
+
+SQUARE_DETECTION_MODEL = YOLO("best_ncnn_model", task="detect", verbose=False)
 
 
 class WSServer:
@@ -69,7 +71,7 @@ class ImageHandler:
             gray = cv2.cvtColor(
                 cv2.cvtColor(img, cv2.COLOR_BGR2GRAY), cv2.COLOR_GRAY2BGR
             )
-            cls.square_coords = center_of_square(gray, save_image=False)
+            cls.square_coords = center_of_square(gray, save_image=True)
             cls.image = img
             cls.image_queue.task_done()
 
@@ -175,7 +177,7 @@ class CoralTransplanter:
             0, proportional_gain=-0.03, integral_gain=-0.001, derivative_gain=0.0e-4
         )
         self.pitch_pid = RotationalPID(
-            0, proportional_gain=0.02, integral_gain=0.007, derivative_gain=0.005
+            0, proportional_gain=0.02, integral_gain=0.009, derivative_gain=0.005
         )
         self.depth_pid = PID(
             proportional_gain=2, integral_gain=0.05, derivative_gain=0.01
@@ -376,38 +378,47 @@ class CoralTransplanter:
 
             z_velocity = self.depth_pid.compute(depth)
             #  yaw_velocity = self.yaw_pid.compute(yaw)
-            y_velocity = 0.4
+            y_velocity = 0.35
 
             if square_x_coord is not None and square_y_coord is not None:
                 print(f"Coords: ({square_x_coord}, {square_y_coord})")
                 self.prev_square_coords.append((square_x_coord, square_y_coord, time()))
                 #  self.square_x_pid.update_set_point(img_center_x)
                 yaw_velocity = self.square_x_pid.compute(square_x_coord)
+                if (
+                    abs(square_x_coord - img_center_x) <= EPSILON
+                    and abs(square_y_coord - img_height) <= EPSILON
+                ):
+                    print(
+                        f"X: {square_x_coord} Y: {square_y_coord} Height: {img_height}"
+                    )
+                    self.start_time = time()
+                    self.current_step = CoralState.SETTING_DOWN
 
             # check if the square disappeared off the bottom of the screen
-            elif len(self.prev_square_coords) > 10:
-                prev_y_coords = np.array([c[1] for c in self.prev_square_coords])
-                prev_times = np.array(
-                    [c[2] for c in self.prev_square_coords], dtype="double"
-                ).reshape((-1, 1))
-                prev_times_transformed = PolynomialFeatures(
-                    degree=2, include_bias=False
-                ).fit_transform(prev_times)
-                print(f"Y Coords: {prev_y_coords}")
-                print(f"Times: {prev_times}")
-                # performs a linear regression on the data to approximate a function
-                # for the y coordinate given a time
-                model = LinearRegression().fit(prev_times_transformed, prev_y_coords)
-                # estimates the x coord given the current time
-                print(f"Coefficient: {model.coef_} Intercept: {model.intercept_}")
-                time_transformed = time() ** 2
-                predicted_y_coord = model.coef_ * time_transformed + model.intercept_
-                print(f"Predicted Y Coord: {predicted_y_coord}")
-                #  predicted_y_coord = model.predict(time())
-                if predicted_y_coord > img_height - EPSILON:
-                    print("I think it's gone")
-                    self.start_time = time()
-                    self.current_step = CoralState.MOVING_BLINDLY
+            #  elif len(self.prev_square_coords) > 10:
+            #      prev_y_coords = np.array([c[1] for c in self.prev_square_coords])
+            #      prev_times = np.array(
+            #          [c[2] for c in self.prev_square_coords], dtype="double"
+            #      ).reshape((-1, 1))
+            #      prev_times_transformed = PolynomialFeatures(
+            #          degree=2, include_bias=False
+            #      ).fit_transform(prev_times)
+            #      print(f"Y Coords: {prev_y_coords}")
+            #      print(f"Times: {prev_times}")
+            #      # performs a linear regression on the data to approximate a function
+            #      # for the y coordinate given a time
+            #      model = LinearRegression().fit(prev_times_transformed, prev_y_coords)
+            #      # estimates the x coord given the current time
+            #      print(f"Coefficient: {model.coef_} Intercept: {model.intercept_}")
+            #      time_transformed = time() ** 2
+            #      predicted_y_coord = model.coef_ * time_transformed + model.intercept_
+            #      print(f"Predicted Y Coord: {predicted_y_coord}")
+            #      #  predicted_y_coord = model.predict(time())
+            #      if predicted_y_coord > img_height - EPSILON:
+            #          print("I think it's gone")
+            #          self.start_time = time()
+            #          self.current_step = CoralState.MOVING_BLINDLY
 
             # if there haven't already been 10 recorded coordinates, go back and verify that the square exists
             else:

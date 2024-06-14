@@ -1,0 +1,14 @@
+description: Ultralytics best model trained on the_square.yaml
+author: Ultralytics
+date: '2024-06-14T09:23:58.614233'
+version: 8.2.16
+license: AGPL-3.0 License (https://ultralytics.com/license)
+docs: https://docs.ultralytics.com
+stride: 32
+task: detect
+batch: 1
+imgsz:
+- 320
+- 320
+names:
+  0: the_square
