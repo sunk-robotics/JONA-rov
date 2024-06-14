@@ -145,18 +145,20 @@ def get_contour(img: np.ndarray) -> (int, int):
 
 
 def main():
-    model = YOLO("../model_small_ncnn_model")
+    model = YOLO("../best_ncnn_model")
     global img, refPt
     count = 1
     while count < 1000:
         refPt = []
-        img = cv2.imread(f"test_images_matty/matty_image{count}.jpg")
+        img = cv2.imread(f"../test_images/image{count}.jpg")
+        gray = cv2.cvtColor(cv2.cvtColor(img, cv2.COLOR_BGR2GRAY), cv2.COLOR_GRAY2BGR)
+        print(f"Image {count}")
 
         img_width = img.shape[1]
         img_height = img.shape[0]
 
         #  contour = get_contour(img)
-        results = model.predict(source=img, save=False, imgsz=256)
+        results = model.predict(source=gray, save=False, imgsz=320)
         print(len(results))
         if len(results) > 0 and len(results[0]) > 0:
             normalized_x, normalized_y, normalized_w, normalized_h = results[
@@ -177,8 +179,6 @@ def main():
             #      f"0 {normalized_x} {normalized_y} {normalized_width} {normalized_height}"
             #  )
             label = f"0 {normalized_x} {normalized_y} {normalized_w} {normalized_h}"
-
-            gray_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
             cv2.rectangle(
                 img, (x - w // 2, y - h // 2), (x + w // 2, y + h // 2), (0, 255, 0), 2
@@ -215,9 +215,9 @@ def main():
                 count += 1
                 continue
 
-            cv2.imwrite(f"new_images/matty_image{count}.jpg", gray_img)
+            cv2.imwrite(f"train/images/deep_end_image{count}.jpg", gray)
             print(f"Label: {label}")
-            with open(f"new_labels/matty_image{count}.txt", "w") as f:
+            with open(f"train/labels/deep_end_image{count}.txt", "w") as f:
                 f.writelines(label)
             label = ""
             count += 1
@@ -237,43 +237,6 @@ def main():
             continue
 
     cv2.destroyAllWindows()
-
-    #  if vc.isOpened():
-    #      ok, frame = vc.read()
-    #  else:
-    #      ok = False
-
-    #  while ok:
-    #      ok, img = vc.read()
-    #      key = cv2.waitKey(20)
-    #      if key == 27:  # exit on ESC
-    #          break
-
-    #      (x_coord, y_coord) = center_of_red(img)
-    #      if x_coord is not None and y_coord is not None:
-    #          cv2.circle(img, (x_coord, y_coord), 5, (255, 255, 255), -1)
-    #          cv2.putText(
-    #              img,
-    #              "Centroid",
-    #              (x_coord - 25, y_coord - 25),
-    #              cv2.FONT_HERSHEY_SIMPLEX,
-    #              0.5,
-    #              (255, 255, 255),
-    #              2,
-    #          )
-    #          img_height, img_width = img.shape[:2]
-    #          img_center_x = img_width / 2
-    #          img_center_y = img_height / 2
-
-    #          x_error = img_center_x - x_coord
-    #          y_error = img_center_y - y_coord
-
-    #          print(f"X Error: {x_error}, Y Error: {y_error}")
-
-    #      cv2.imshow("Center of Red Square", img)
-
-    #  cv2.destroyAllWindows()
-    #  vc.release()
 
 
 if __name__ == "__main__":

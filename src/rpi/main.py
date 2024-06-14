@@ -102,14 +102,23 @@ async def main_server():
     print("Server started!")
     while True:
         joystick_data = WSServer.pump_joystick_data()
+        can_read_depth = True
         if depth_sensor is not None:
-            depth_sensor.read()
+            try:
+                depth_sensor.read()
+            except OSError:
+                can_read_depth = False
+                print("Unable to read from depth sensor!")
 
         # read sensor information
         internal_temp = imu.temperature if imu is not None else None
         external_temp = depth_sensor.temperature() if depth_sensor is not None else None
         cpu_temp = None
-        depth = depth_sensor.depth() if depth_sensor is not None else None
+        depth = (
+            depth_sensor.depth()
+            if depth_sensor is not None and can_read_depth
+            else None
+        )
         yaw = imu.euler[0] if imu is not None else None
         roll = imu.euler[1] if imu is not None else None
         pitch = imu.euler[2] - 90 if imu is not None else None

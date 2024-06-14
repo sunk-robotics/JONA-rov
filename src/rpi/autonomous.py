@@ -464,147 +464,32 @@ def center_of_square(img: np.ndarray, save_image=False) -> (int, int):
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     gray = cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
     results = SQUARE_DETECTION_MODEL.predict(
-        source=gray, save=False, imgsz=256, verbose=False
+        source=gray, save=False, imgsz=320, verbose=False
     )
     if len(results) > 0 and len(results[0]) > 0:
         x1, y1, x2, y2 = [round(tensor.item()) for tensor in results[0].boxes.xyxy[0]]
         center_x = round((x2 + x1) / 2)
         center_y = round((y2 + y1) / 2)
         if save_image:
-            cv2.circle(img, (center_x, center_y), 5, (255, 255, 255), -1)
-            cv2.putText(
-                img,
-                "Centroid",
-                (center_x - 25, center_y - 25),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.5,
-                (255, 255, 255),
-                2,
-            )
             cv2.imwrite(f"./images/{time()}.jpg", img)
+            annotated_img = results[0].plot()
+            #  cv2.circle(img, (center_x, center_y), 5, (255, 255, 255), -1)
+            #  cv2.putText(
+            #      img,
+            #      "Centroid",
+            #      (center_x - 25, center_y - 25),
+            #      cv2.FONT_HERSHEY_SIMPLEX,
+            #      0.5,
+            #      (255, 255, 255),
+            #      2,
+            #  )
+            cv2.imwrite(f"./images/{time()}_annotated.jpg", annotated_img)
         return center_x, center_y
     else:
         if save_image:
             cv2.imwrite(f"./images/{time()}.jpg", img)
 
     return None, None
-
-
-def filter_contours(contours: np.ndarray, iter_num: int) -> bool:
-    filtered_contours = []
-    for contour in contours:
-        area = cv2.contourArea(contour)
-        _, _, width, height = cv2.boundingRect(contour)
-        aspect_ratio = width / height if height != 0 else math.inf
-
-        hull = cv2.convexHull(contour)
-        hull_area = cv2.contourArea(hull)
-
-        solidity = area / hull_area if hull_area != 0 else math.inf
-
-        if (
-            area > 100 / (iter_num + 1)
-            and area < 10_000 / (iter_num + 1)
-            and aspect_ratio > 0.8
-            and solidity > 0.5
-        ):
-            filtered_contours.append(contour)
-
-    return filtered_contours
-
-
-# find the x and y coordinates of the center of a red object in the image
-def center_of_red(img: np.ndarray, save_image=False) -> (int, int):
-    if img is None:
-        return None, None
-
-    # blurring helps reduce noise that might confuse the algorithm
-    img_blur = cv2.GaussianBlur(img, (9, 9), 0)
-
-    # crop out part of the top, left, and right sides of the image to remove
-    # interference from reflections and other irrelevant parts of the image
-    img_width = img.shape[1]
-    img_height = img.shape[0]
-    mask = np.zeros(img.shape[:2], dtype="uint8")
-
-    cv2.rectangle(
-        mask,
-        (0, int(img_height / 4)),
-        (int(img_width * (4 / 5)), img_height),
-        255,
-        -1,
-    )
-    cropped_img = cv2.bitwise_and(img_blur, img_blur, mask=mask)
-
-    # converting to HSV (Hue, Saturation, Value) makes it easier to identify a range
-    # of possible red values
-    img_hsv = cv2.cvtColor(cropped_img, cv2.COLOR_BGR2HSV)
-
-    largest_contour = None
-    # red light attenuates very quickly underwater, so the farther the ROV is
-    # away from the square, the grayer/browner the square becomes, so gradually
-    # increase the range of colors until the square can be found
-    for i in range(0, 5):
-        filter_img = img_hsv
-        lower_red = np.array([0, 10, 10])
-        upper_red = np.array([i * 5 + 10, 255, 150])
-        red_mask = cv2.inRange(filter_img, lower_red, upper_red)
-
-        # turn all parts of the image that aren't red into black
-        red_img = cv2.bitwise_and(filter_img, filter_img, mask=red_mask)
-
-        # turn the image into a binary (black and white) image, where the white parts
-        # represent anything red, and the black parts represent anything not red
-        gray_img = cv2.split(red_img)[2]
-        _, thresh = cv2.threshold(gray_img, 1, 255, cv2.THRESH_BINARY)
-
-        contours, _ = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-
-        #  for contour in contours:
-        #      area = cv2.contourArea(contour)
-        #      print(f"Contour Area: {area}")
-
-        #      x, y, w, h = cv2.boundingRect(contour)
-        #      aspect_ratio = w / h if h != 0 else math.inf
-        #      print(f"Aspect Ratio: {aspect_ratio}")
-
-        #      hull = cv2.convexHull(contour)
-        #      hull_area = cv2.contourArea(hull)
-
-        #      solidity = area / hull_area if hull_area != 0 else math.inf
-
-        #      print(f"Solidity: {solidity}")
-
-        # filter out any contours that don't match the shape of the square
-        filtered_contours = filter_contours(contours, i)
-
-        if len(filtered_contours) > 0:
-            largest_contour = max(filtered_contours, key=cv2.contourArea)
-            break
-
-    if largest_contour is None:
-        return None, None
-
-    moment = cv2.moments(largest_contour)
-    if moment["m00"] == 0:
-        print("shit")
-        return None, None
-
-    x_coord = int(moment["m10"] / moment["m00"])
-    y_coord = int(moment["m01"] / moment["m00"])
-    if save_image:
-        cv2.circle(img, (x_coord, y_coord), 5, (255, 255, 255), -1)
-        cv2.putText(
-            img,
-            "Centroid",
-            (x_coord - 25, y_coord - 25),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.5,
-            (255, 255, 255),
-            2,
-        )
-        #  cv2.imwrite(f"./images/{time()}.jpg", img)
-    return x_coord, y_coord
 
 
 async def main_loop():
