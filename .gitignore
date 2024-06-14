@@ -13,3 +13,5 @@ src/coral-modeling/result.*
 src/frontend/public/result.glb
 src/autonomous/pothole_dataset_v8/
 src/autonomous/images/
+src/rpi/images/
+src/rpi/test_images/

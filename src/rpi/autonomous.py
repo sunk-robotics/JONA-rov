@@ -22,7 +22,7 @@ import websockets.sync.client
 #      "square_detection_ncnn_model", task="detect", verbose=False
 #  )
 
-SQUARE_DETECTION_MODEL = YOLO("best_ncnn_model", task="detect", verbose=False)
+SQUARE_DETECTION_MODEL = YOLO("best_ncnn_model", task="detect")
 
 
 class WSServer:
@@ -475,7 +475,7 @@ def center_of_square(img: np.ndarray, save_image=False) -> (int, int):
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     gray = cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
     results = SQUARE_DETECTION_MODEL.predict(
-        source=gray, save=False, imgsz=320, verbose=False
+        source=gray, save=False, imgsz=320, verbose=True
     )
     if len(results) > 0 and len(results[0]) > 0:
         x1, y1, x2, y2 = [round(tensor.item()) for tensor in results[0].boxes.xyxy[0]]
