@@ -62,10 +62,10 @@ class Motors:
     def calc_z_velocity(self, velocity: float):
         # positive velocity - ROV moves up
         # negative velocity - ROV moves down
-        self.motor_velocities[4] += velocity
-        self.motor_velocities[5] += velocity
-        self.motor_velocities[6] += velocity
-        self.motor_velocities[7] += velocity
+        self.motor_velocities[4] -= velocity
+        self.motor_velocities[5] -= velocity
+        self.motor_velocities[6] -= velocity
+        self.motor_velocities[7] -= velocity
 
     # turn the ROV left or right
     def calc_x_velocity(self, velocity: float):

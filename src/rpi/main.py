@@ -69,20 +69,27 @@ async def main_server():
     # multiplier for velocity to set speed limit
     speed_multiplier = 1
 
-    # lock the controls in a certain state
-    motor_lock = False
+    # lock the controls in a certain state, each velocity can have its own lock
+    motor_locks = {
+        "x": False,
+        "y": False,
+        "z": False,
+        "yaw": False,
+        "pitch": False,
+        "roll": False,
+    }
 
     # whether the ROV is attempting to autonomously transplant a sample of coral
     is_autonomous = False
     coral_transplanter = None
 
     locked_velocities = {
-        "x_velocity": 0,
-        "y_velocity": 0,
-        "z_velocity": 0,
-        "yaw_velocity": 0,
-        "pitch_velocity": 0,
-        "roll_velocity": 0,
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "yaw": 0,
+        "pitch": 0,
+        "roll": 0,
     }
 
     # stores the last button press of the velocity toggle button
@@ -151,7 +158,7 @@ async def main_server():
                 "yaw_anchor_enabled": yaw_anchor,
                 "roll_anchor_enabled": roll_anchor,
                 "pitch_anchor_enabled": pitch_anchor,
-                "motor_lock_enabled": motor_lock,
+                "motor_lock_enabled": motor_locks,
             }
             await WSServer.web_client_main.send(json.dumps(status_info))
 
@@ -159,7 +166,7 @@ async def main_server():
         if joystick_data:
             x_velocity = joystick_data["left_stick"][0] * speed_multiplier
             y_velocity = joystick_data["left_stick"][1] * speed_multiplier
-            z_velocity = -joystick_data["right_stick"][1] * speed_multiplier
+            z_velocity = joystick_data["right_stick"][1] * speed_multiplier
             yaw_velocity = joystick_data["right_stick"][0] * speed_multiplier
             pitch_velocity = joystick_data["dpad"][1] * speed_multiplier
             roll_velocity = joystick_data["dpad"][0] * speed_multiplier
@@ -240,7 +247,8 @@ async def main_server():
         # when the z velocity is greater than a certain threshold in order to
         # give the pilot control over the depth when the depth anchor is on
         if depth_anchor and depth is not None and abs(z_velocity) < destable_thresh:
-            z_velocity = depth_pid.compute(depth)
+            z_velocity = -depth_pid.compute(depth)
+            print(z_velocity)
 
         # set the yaw velocity according to the yaw PID controller based on
         # current yaw angle
@@ -259,13 +267,21 @@ async def main_server():
             #  print(f"Error: {pitch_pid.set_point - pitch}")
             pitch_velocity = pitch_pid.compute(pitch)
 
-        if motor_lock:
-            x_velocity = locked_velocities["x_velocity"]
-            y_velocity = locked_velocities["y_velocity"]
-            z_velocity = locked_velocities["z_velocity"]
-            yaw_velocity = locked_velocities["yaw_velocity"]
-            pitch_velocity = locked_velocities["pitch_velocity"]
-            roll_velocity = locked_velocities["roll_velocity"]
+        if motor_locks["x"]:
+            print("x")
+            x_velocity = locked_velocities["x"]
+        if motor_locks["y"]:
+            print("y")
+            y_velocity = locked_velocities["y"]
+        if motor_locks["z"]:
+            print("z")
+            z_velocity = locked_velocities["z"]
+        if motor_locks["yaw"]:
+            yaw_velocity = locked_velocities["yaw"]
+        if motor_locks["pitch"]:
+            pitch_velocity = locked_velocities["pitch"]
+        if motor_locks["roll"]:
+            roll_velocity = locked_velocities["roll"]
 
         # autonomous code should take precedence
         if is_autonomous:
@@ -281,7 +297,13 @@ async def main_server():
             if return_code == CoralReturn.FINISHED:
                 is_autonomous = False
                 ImageHandler.stop_listening()
+                # stabilize after finishing
+                depth_anchor = True
+                pitch_anchor = True
+                depth_pid.update_set_point(depth)
+                pitch_pid.update_set_point(pitch)
                 print("Autonomous task completed!")
+
             elif return_code == CoralReturn.FAILED:
                 is_autonomous = False
                 ImageHandler.stop_listening()
@@ -375,17 +397,31 @@ async def main_server():
 
         # toggle the motor lock
         if motor_lock_toggle and not prev_motor_lock_toggle:
-            if motor_lock:
-                motor_lock = False
+            if any(motor_locks.values()):
+                motor_locks = {
+                    "x": False,
+                    "y": False,
+                    "z": False,
+                    "yaw": False,
+                    "pitch": False,
+                    "roll": False,
+                }
                 print("Motor lock disabled!")
             else:
-                motor_lock = True
-                locked_velocities["x_velocity"] = x_velocity
-                locked_velocities["y_velocity"] = y_velocity
-                locked_velocities["z_velocity"] = z_velocity
-                locked_velocities["yaw_velocity"] = yaw_velocity
-                locked_velocities["pitch_velocity"] = pitch_velocity
-                locked_velocities["roll_velocity"] = roll_velocity
+                motor_locks = {
+                    "x": True,
+                    "y": True,
+                    "z": True,
+                    "yaw": True,
+                    "pitch": True,
+                    "roll": True,
+                }
+                locked_velocities["x"] = x_velocity
+                locked_velocities["y"] = y_velocity
+                locked_velocities["z"] = z_velocity
+                locked_velocities["yaw"] = yaw_velocity
+                locked_velocities["pitch"] = pitch_velocity
+                locked_velocities["roll"] = roll_velocity
                 print("Motor lock enabled!")
 
         # toggle the autonomous control
