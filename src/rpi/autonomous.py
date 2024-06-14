@@ -262,11 +262,11 @@ class CoralTransplanter:
             y_velocity = 0.0
 
             # if the square can't be found after moving for 15 seconds, just give up
-            #  print(self.approaching_timer.read())
-            #  if self.approaching_timer.read() > 30:
-            #      self.curent_step = CoralState.FAILURE
-            #      print("Couldn't Find Square!")
-            #      return (0, 0, 0, 0, 0, 0, CoralReturn.FAILED)
+            print(self.approaching_timer.read())
+            if self.approaching_timer.read() > 15:
+                self.curent_step = CoralState.FAILURE
+                print("Time's up! Couldn't find square!")
+                return (0, 0, 0, 0, 0, 0, CoralReturn.FAILED)
 
             # may want to implement something to make sure the x and y coords are stable
             # to prevent the algorithm from latching onto some random red object
@@ -382,18 +382,23 @@ class CoralTransplanter:
 
             if square_x_coord is not None and square_y_coord is not None:
                 print(f"Coords: ({square_x_coord}, {square_y_coord})")
+                yaw_velocity = self.square_x_pid.compute(square_x_coord)
+
+                # to protect against a random false positive, the previous sighting of the square must be in the general area
+                if len(self.prev_square_coords) > 1:
+                    prev_x = self.prev_square_coords[-1][0]
+                    prev_y = self.prev_square_coords[-1][1]
+                    if (
+                        abs(square_x_coord - img_center_x) <= EPSILON
+                        and abs(square_y_coord - img_height) <= EPSILON
+                        and abs(prev_x - img_center_x) <= EPSILON * 1.5
+                        and abs(prev_y - img_height) <= EPSILON * 1.5
+                    ):
+                        self.start_time = time()
+                        self.current_step = CoralState.SETTING_DOWN
+
                 self.prev_square_coords.append((square_x_coord, square_y_coord, time()))
                 #  self.square_x_pid.update_set_point(img_center_x)
-                yaw_velocity = self.square_x_pid.compute(square_x_coord)
-                if (
-                    abs(square_x_coord - img_center_x) <= EPSILON
-                    and abs(square_y_coord - img_height) <= EPSILON
-                ):
-                    print(
-                        f"X: {square_x_coord} Y: {square_y_coord} Height: {img_height}"
-                    )
-                    self.start_time = time()
-                    self.current_step = CoralState.SETTING_DOWN
 
             # check if the square disappeared off the bottom of the screen
             #  elif len(self.prev_square_coords) > 10:
