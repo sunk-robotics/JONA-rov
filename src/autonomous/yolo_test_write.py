@@ -7,22 +7,18 @@ import glob
 # Load a YOLOv8n PyTorch model
 #  model = YOLO("best.pt")
 #  model = YOLO("model_small.pt")
-model = YOLO("model_small_ncnn_model")
+model = YOLO("best_ncnn_model", task="detect")
 
 img_num = 0
-for filepath in glob.iglob("coral_dataset/train/new_images/*.jpg"):
+for filepath in glob.iglob("coral_dataset/valid/images/*.jpg"):
     img = cv2.imread(filepath)
     img_width = img.shape[1]
     img_height = img.shape[0]
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    cv2.imwrite("ooga.jpg", gray)
-    gray = cv2.imread("ooga.jpg")
+    gray = cv2.cvtColor(cv2.cvtColor(img, cv2.COLOR_BGR2GRAY), cv2.COLOR_GRAY2BGR)
 
-    results = model.predict(source=gray, save=False, imgsz=256)
+    results = model.predict(source=gray, save=False, imgsz=320, max_det=1, half=True)
     if len(results) > 0 and len(results[0]) > 0:
-        x1, y1, x2, y2 = [
-            round(tensor.item()) for tensor in results[0].boxes.xyxy[0]
-        ]
+        x1, y1, x2, y2 = [round(tensor.item()) for tensor in results[0].boxes.xyxy[0]]
         print(x1, y2, x2, y2)
         center_x = round((x2 + x1) / 2)
         center_y = round((y2 + y1) / 2)
