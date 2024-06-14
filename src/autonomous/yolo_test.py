@@ -15,7 +15,7 @@ for filepath in glob.iglob("coral_dataset/valid/images/*.jpg"):
     img_height = img.shape[0]
     gray = cv2.cvtColor(cv2.cvtColor(img, cv2.COLOR_BGR2GRAY), cv2.COLOR_GRAY2BGR)
 
-    results = model.predict(source=gray, save=True, imgsz=320)
+    results = model.predict(source=gray, save=False, imgsz=320, max_det=1, half=True)
     if len(results) > 0 and len(results[0]) > 0:
         x1, y1, x2, y2 = [round(tensor.item()) for tensor in results[0].boxes.xyxy[0]]
         print(x1, y2, x2, y2)
