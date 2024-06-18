@@ -1,7 +1,7 @@
 import adafruit_bno055
 import asyncio
 import autonomous
-from autonomous import ImageHandler, CoralTransplanter, CoralReturn
+from autonomous import ImageHandler, CoralTransplanter, CoralReturn, SQUARE_HEIGHT
 import board
 import cv2
 import json
@@ -106,6 +106,10 @@ async def main_server():
     prev_roll_velocity = 0
     prev_pitch_velocity = 0
 
+    # the recorded depth of the red square for the autonomous brain coral
+    # transplantation task
+    square_depth = None
+
     print("Server started!")
     while True:
         joystick_data = WSServer.pump_joystick_data()
@@ -181,6 +185,7 @@ async def main_server():
             motor_lock_toggle = joystick_data["buttons"]["start"]
             autonomous_toggle = joystick_data["buttons"]["select"]
             photo_trigger = joystick_data["buttons"]["left_trigger"]
+            record_depth_trigger = joystick_data["buttons"]["right_trigger"]
         else:
             x_velocity = 0
             y_velocity = 0
@@ -196,6 +201,7 @@ async def main_server():
             motor_lock_toggle = 0
             autonomous_toggle = 0
             photo_trigger = 0
+            record_depth_trigger = 0
 
         # when the controller speed increases beyond 50% of the speed multiplier,
         # temporarily turn off any stabilization
@@ -248,7 +254,6 @@ async def main_server():
         # give the pilot control over the depth when the depth anchor is on
         if depth_anchor and depth is not None and abs(z_velocity) < destable_thresh:
             z_velocity = -depth_pid.compute(depth)
-            print(z_velocity)
 
         # set the yaw velocity according to the yaw PID controller based on
         # current yaw angle
@@ -263,8 +268,6 @@ async def main_server():
         # set the pitch velocity according to the pitch PID controller based on
         # current pitch angle
         if pitch_anchor and pitch is not None and abs(pitch_velocity) < destable_thresh:
-            #  print(f"Pitch Angle: {pitch}°")
-            #  print(f"Error: {pitch_pid.set_point - pitch}")
             pitch_velocity = pitch_pid.compute(pitch)
 
         if motor_locks["x"]:
@@ -319,10 +322,10 @@ async def main_server():
             else:
                 print("Unable to save image!")
 
-        #  if current_12V > 25:
-        #      motors.speed_limit = 0.8
-        #  else:
-        #      motors.speed_limit = 1.0
+        # before beginning the autonomous coral transplantation task, the ROV should
+        # move over to the square and record the depth of the square
+        if record_depth_trigger:
+            square_depth = depth
 
         # run the motors!
         motors.drive_motors(
@@ -433,7 +436,10 @@ async def main_server():
             else:
                 ImageHandler.start_listening()
                 is_autonomous = True
-                coral_transplanter = CoralTransplanter(depth, yaw)
+                if square_depth is not None:
+                    coral_transplanter = CoralTransplanter(square_depth, yaw)
+                else:
+                    coral_transplanter = CoralTransplanter(depth - SQUARE_HEIGHT, yaw)
                 print("Autonomous mode enabled!")
 
         prev_depth_anchor_toggle = depth_anchor_toggle

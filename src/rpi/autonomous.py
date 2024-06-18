@@ -161,33 +161,45 @@ class CoralReturn(Enum):
     IN_PROGRESS = 1
 
 
+# the red square is at a height of about 32 cm above the pool floor
+SQUARE_HEIGHT = 0.32
+# the ROV should be 30 cm above the height of the square when moving towards it
+MOVING_HEIGHT = 0.30
+BLIND_MOVING_TIME = 1
+# after placing the bowl in the correct spot, the ROV has a lot forward momentum that
+# needs to be countered
+SLOW_DOWN_TIME = 0.3
+# the ROV should spend 1 second setting the square down
+SETTING_DOWN_TIMEOUT = 1
+# when a square is first detected, verify its existence by seeing if it exists in 10
+# different frames
+NUM_VERIFICATIONS = 10
+
+
 class CoralTransplanter:
-    def __init__(self, pool_floor_depth: float, yaw_angle: int):
-        #  self.square_detection = YOLO("square_detection_model")
+    def __init__(self, square_depth: float, yaw_angle: int):
         # the red square is at a height of about 32 cm above the pool floor
-        self.SQUARE_HEIGHT = 0.32
-        # the ROV should be 75 cm above the pool floor when searching for the square
-        self.LOCATING_HEIGHT = 0.75
-        # the ROV should be 8 cm above the height of the square when moving towards it
-        self.MOVING_HEIGHT = self.SQUARE_HEIGHT + 0.30
+        #  self.SQUARE_HEIGHT = 0.32
+        # the ROV should be 30 cm above the height of the square when moving towards it
+        #  self.MOVING_HEIGHT = self.SQUARE_HEIGHT + 0.30
+        #  self.MOVING_HEIGHT = 0.30
 
         # after the red square is no longer in the ROV's vision, the ROV should continue
         # moving for another second
-        self.BLIND_MOVING_TIME = 1
-        # after placing the bowl in the correct spot, the ROV has a lot of forward momentum that needs to be countered
-        self.SLOW_DOWN_TIME = 0.3
+        #  self.BLIND_MOVING_TIME = 1
+        # after placing the bowl in the correct spot, the ROV has a lot of forward
+        # momentum that needs to be countered
+        #  self.SLOW_DOWN_TIME = 0.3
         # if the ROV takes longer than 3 seconds to reach the target depth, assume that
         # the depth is slightly off and stop attempting
-        self.SETTING_DOWN_TIMEOUT = 1
+        #  self.SETTING_DOWN_TIMEOUT = 1
 
-        self.pool_floor_depth = pool_floor_depth
-        self.square_depth = pool_floor_depth - self.SQUARE_HEIGHT
-        self.locating_depth = pool_floor_depth - self.LOCATING_HEIGHT
-        self.moving_depth = pool_floor_depth - self.MOVING_HEIGHT
+        self.square_depth = square_depth
+        self.moving_depth = self.square_depth - MOVING_HEIGHT
 
         self.prev_square_coords = []
 
-        self.NUM_VERIFICATIONS = 10
+        #  self.NUM_VERIFICATIONS = 10
         self.verify_count = 0
 
         # the roll and pitch anchor should always be on
@@ -316,7 +328,7 @@ class CoralTransplanter:
             yaw_velocity = self.yaw_pid.compute(yaw)
             y_velocity = -0.1
 
-            if self.verify_count < self.NUM_VERIFICATIONS:
+            if self.verify_count < NUM_VERIFICATIONS:
                 if square_x is not None and square_y is not None:
                     self.prev_square_coords.append((square_x, square_y, time()))
                 else:
@@ -469,7 +481,7 @@ class CoralTransplanter:
             z_velocity = -self.depth_pid.compute(depth)
             y_velocity = 0.2
 
-            if time() - self.start_time >= self.BLIND_MOVING_TIME:
+            if time() - self.start_time >= BLIND_MOVING_TIME:
                 self.start_time = time()
                 self.current_step = CoralState.SETTING_DOWN
                 print("Moving on Next Step: Setting Down")
@@ -492,7 +504,7 @@ class CoralTransplanter:
             if (
                 #  abs(self.square_depth - depth) <= EPSILON
                 time() - self.start_time
-                >= self.SETTING_DOWN_TIMEOUT
+                >= SETTING_DOWN_TIMEOUT
             ):
                 self.current_step = CoralState.FINISHED
                 #  self.depth_pid.update_set_point(depth - 0.1)
