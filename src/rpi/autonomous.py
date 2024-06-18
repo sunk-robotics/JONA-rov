@@ -168,6 +168,7 @@ MOVING_HEIGHT = 0.30
 BLIND_MOVING_TIME = 1
 # after placing the bowl in the correct spot, the ROV has a lot forward momentum that
 # needs to be countered
+#  SLOW_DOWN_TIME = 0.3
 SLOW_DOWN_TIME = 0.3
 # the ROV should spend 1 second setting the square down
 SETTING_DOWN_TIMEOUT = 1
@@ -211,13 +212,13 @@ class CoralTransplanter:
         )
         # the ROV should stay parallel to the pool floor
         self.roll_pid = RotationalPID(
-            0, proportional_gain=-0.03, integral_gain=-0.001, derivative_gain=0.0e-4
+            0, proportional_gain=-0.022, integral_gain=-0.001, derivative_gain=0.0e-4
         )
         self.pitch_pid = RotationalPID(
             15, proportional_gain=0.035, integral_gain=0.009, derivative_gain=0.005
         )
         self.depth_pid = PID(
-            proportional_gain=2.4, integral_gain=0.05, derivative_gain=0.01
+            proportional_gain=3, integral_gain=0.1, derivative_gain=0.01
         )
 
         self.square_x_pid = PID(
@@ -281,7 +282,7 @@ class CoralTransplanter:
             z_velocity = -self.depth_pid.compute(depth)
             yaw_velocity = self.yaw_pid.compute(yaw)
             print(
-                f"Set Point: {self.depth_pid.set_point} Depth: {depth} Z Velocity: {z_velocity}"
+                f"Set Point: {self.yaw_pid.set_point} Yaw: {yaw} Yaw Velocity: {yaw_velocity}"
             )
 
             # the ROV should be within 1 cm of the target depth
@@ -368,7 +369,7 @@ class CoralTransplanter:
         # step 4 is to center the square in the ROV's vision
         elif self.current_step == CoralState.CENTERING_SQUARE:
             #  print(f"X Coord: {square_x} Y Coord: {square_y}")
-            EPSILON = 20
+            EPSILON = 25
             z_velocity = -self.depth_pid.compute(depth)
             y_velocity = -0.1
 
@@ -415,14 +416,13 @@ class CoralTransplanter:
         # horizontally in the ROV's vision, until the square falls off the bottom of the
         # screen
         elif self.current_step == CoralState.ARRIVING_AT_SQUARE:
-            EPSILON_Y = 50
+            EPSILON_Y = 30
             EPSILON_X = 200
 
             z_velocity = -self.depth_pid.compute(depth)
-            print(f"Depth: {depth} Target Depth: {self.depth_pid.set_point}")
-            #  print(f"Pitch Velocity: {pitch_velocity}")
-            print(f"Pitch: {pitch} Target Pitch: {self.pitch_pid.set_point}")
-            #  yaw_velocity = self.yaw_pid.compute(yaw)
+            print(
+                f"Depth: {depth} Target Depth: {self.depth_pid.set_point} Z-Velocity: {z_velocity}"
+            )
             y_velocity = 0.25
 
             if square_x is not None and square_y is not None:
@@ -488,8 +488,8 @@ class CoralTransplanter:
 
         # need to counter the ROV's forward momentum
         elif self.current_step == CoralState.SLOW_DOWN:
-            z_velocity = -0.2
-            if time() - self.start_time >= self.SLOW_DOWN_TIME:
+            y_velocity = 0.25
+            if time() - self.start_time >= SLOW_DOWN_TIME:
                 self.start_time = time()
                 self.current_step = CoralState.SETTING_DOWN
         # step 8 is to set the coral head down on the red square
@@ -497,6 +497,7 @@ class CoralTransplanter:
             # the ROV should be within 1 cm of the target depth
             EPSILON = 1
             z_velocity = -0.3
+            yaw_velocity = 0.2
             y_velocity = -0.0
             # the ROV should move to the depth of the square, if for some reason, the
             # depth is incorrect, the ROV will stop trying to move down after a certain

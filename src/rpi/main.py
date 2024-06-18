@@ -310,11 +310,12 @@ async def main_server():
             elif return_code == CoralReturn.FAILED:
                 is_autonomous = False
                 ImageHandler.stop_listening()
+                square_depth = None
                 print("Autonomous task failed! ;-;")
 
         if photo_trigger:
             ImageHandler.start_listening()
-            img, _ = ImageHandler.pump_image()
+            img, _, _, _, _ = ImageHandler.pump_image()
             if img is not None:
                 filename = f"test_images/{time()}.jpg"
                 cv2.imwrite(filename, img)
@@ -326,6 +327,7 @@ async def main_server():
         # move over to the square and record the depth of the square
         if record_depth_trigger:
             square_depth = depth
+            print(f"Square depth recorded at {square_depth:.2f} m")
 
         # run the motors!
         motors.drive_motors(
@@ -436,6 +438,11 @@ async def main_server():
             else:
                 ImageHandler.start_listening()
                 is_autonomous = True
+                yaw_anchor = False
+                roll_anchor = False
+                pitch_anchor = False
+                depth_anchor = False
+
                 if square_depth is not None:
                     coral_transplanter = CoralTransplanter(square_depth, yaw)
                 else:
