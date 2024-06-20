@@ -150,7 +150,9 @@ def main():
     count = 1
     while count < 1000:
         refPt = []
-        img = cv2.imread(f"../test_images/image{count}.jpg")
+        img = cv2.imread(
+            f"/home/random/Downloads/images_matty/matty_hotel_image2_{count}.jpg"
+        )
         gray = cv2.cvtColor(cv2.cvtColor(img, cv2.COLOR_BGR2GRAY), cv2.COLOR_GRAY2BGR)
         print(f"Image {count}")
 
@@ -215,9 +217,9 @@ def main():
                 count += 1
                 continue
 
-            cv2.imwrite(f"train/images/deep_end_image{count}.jpg", gray)
+            cv2.imwrite(f"new_images/images/matty_hotel_image2_{count}.jpg", gray)
             print(f"Label: {label}")
-            with open(f"train/labels/deep_end_image{count}.txt", "w") as f:
+            with open(f"new_images/labels/matty_hotel_image2_{count}.txt", "w") as f:
                 f.writelines(label)
             label = ""
             count += 1
