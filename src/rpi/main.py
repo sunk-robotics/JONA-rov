@@ -19,6 +19,9 @@ from ws_server import WSServer
 # disabled (0..1)
 destable_thresh = 0.5
 
+# set the current draw limit in amps. 
+# speed_multiplier will be changed to compensate for overdraw.
+MAX_CURRENT = 25 
 
 async def main_server():
     motors = Motors()
@@ -110,6 +113,9 @@ async def main_server():
     # transplantation task
     square_depth = None
 
+    throttle_limit_factor = 0
+    set_throttle = speed_multiplier
+
     print("Server started!")
     while True:
         joystick_data = WSServer.pump_joystick_data()
@@ -163,6 +169,7 @@ async def main_server():
                 "roll_anchor_enabled": roll_anchor,
                 "pitch_anchor_enabled": pitch_anchor,
                 "motor_lock_enabled": motor_locks,
+                "throttle_limit_factor": throttle_limit_factor,
             }
             await WSServer.web_client_main.send(json.dumps(status_info))
 
@@ -206,6 +213,17 @@ async def main_server():
         # when the controller speed increases beyond 50% of the speed multiplier,
         # temporarily turn off any stabilization
         destable_thresh = speed_multiplier / 2
+
+        # adjust speed mutliplier based on current draw
+        if (current_12V > MAX_CURRENT):
+            previous_speed_multiplier = speed_multiplier
+            throttle_limit_factor += 0.1
+        else:
+            throttle_limit_factor = 0
+            speed_multiplier = set_throttle
+	     
+        # apply factor
+        speed_multiplier -= throttle_limit_factor
 
         # re-enable the depth anchor at a new depth when the z velocity falls below the
         # threshold
@@ -310,24 +328,25 @@ async def main_server():
             elif return_code == CoralReturn.FAILED:
                 is_autonomous = False
                 ImageHandler.stop_listening()
-                square_depth = None
                 print("Autonomous task failed! ;-;")
 
         if photo_trigger:
-            ImageHandler.start_listening()
-            img, _, _, _, _ = ImageHandler.pump_image()
-            if img is not None:
-                filename = f"test_images/{time()}.jpg"
-                cv2.imwrite(filename, img)
-                print(f"Saved image to {filename}")
-            else:
-                print("Unable to save image!")
+            try:
+                ImageHandler.start_listening()
+                img, _ = ImageHandler.pump_image()
+                if img is not None:
+                    filename = f"test_images/{time()}.jpg"
+                    cv2.imwrite(filename, img)
+                    print(f"Saved image to {filename}")
+                else:
+                    print("Unable to save image!")
+            except Exception as e:
+                print(f"Photo trigger error: {e}") # Add handling specificities .. . .
 
         # before beginning the autonomous coral transplantation task, the ROV should
         # move over to the square and record the depth of the square
         if record_depth_trigger:
             square_depth = depth
-            print(f"Square depth recorded at {square_depth:.2f} m")
 
         # run the motors!
         motors.drive_motors(
@@ -343,11 +362,12 @@ async def main_server():
         if speed_toggle != prev_speed_toggle:
             # make sure the speed doesn't exceed 1
             if speed_toggle > 0 and speed_multiplier < 1:
-                speed_multiplier += 0.2
+                #speed_multiplier += 0.2
+                set_throttle += 0.1
             # make sure the speed doesn't fall below 0
             if speed_toggle < 0 and speed_multiplier >= 0.2:
-                speed_multiplier -= 0.2
-
+                #speed_multiplier -= 0.2
+                set_throttle -= 0.1
             # just in case the speed multiplier ends up out of range
             if speed_multiplier > 1:
                 speed_multiplier = 1
@@ -438,11 +458,6 @@ async def main_server():
             else:
                 ImageHandler.start_listening()
                 is_autonomous = True
-                yaw_anchor = False
-                roll_anchor = False
-                pitch_anchor = False
-                depth_anchor = False
-
                 if square_depth is not None:
                     coral_transplanter = CoralTransplanter(square_depth, yaw)
                 else:

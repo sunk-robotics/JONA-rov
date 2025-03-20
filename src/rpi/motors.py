@@ -9,20 +9,20 @@ class Motors:
         # After calibrating with the oscilloscope, the correct reference clock
         # speed for the particular PCA9685 should be 24.725 MHz, rather than the
         # standard 25 MHz. If the motors don't work for some reason, check the
-        # reference clock.
-        self.kit = ServoKit(channels=16, reference_clock_speed=24_725_000)
+        # reference clock. Magic number for V2: 24_725_000 Magic number for V3: 25_445_990
+        self.kit = ServoKit(channels=16, reference_clock_speed=25_445_990)
         self.num_motors = 8
         # a table that maps the motor number to the correct channel on the PWM
         # controller
         self.motor_channel_table = {
-            0: 12,
-            1: 13,
-            2: 8,
+            0: 9,
+            1: 11,
+            2: 13,
             3: 10,
-            4: 9,
-            5: 14,
-            6: 15,
-            7: 11,
+            4: 8,
+            5: 15,
+            6: 12,
+            7: 14,
         }
         self.motor_velocities = [0, 0, 0, 0, 0, 0, 0, 0]
         self.speed_limit = 0.7
@@ -128,12 +128,14 @@ class Motors:
             self.drive_motor(motor_num, velocity)
 
     def test_motors(self):
-        for motor_num in range(self.num_motors):
-            self.drive_motor(motor_num, 0.3)
-            print(f"Testing motor: {motor_num}")
-            time.sleep(2)
-            self.drive_motor(motor_num, 0)
-        self.stop_all()
+        try:
+            for motor_num in range(self.num_motors):
+                self.drive_motor(motor_num, 0.3)
+                print(f"Testing motor: {motor_num}")
+                time.sleep(2)
+                self.drive_motor(motor_num, 0)
+        except KeyboardInterrupt:
+            self.stop_all()
 
     def find_max_speed(self, z_rotate, x_rotate) -> (float, float, float):
         SLOPE = math.sqrt(3)
