@@ -114,7 +114,6 @@ async def main_server():
     square_depth = None
 
     throttle_limit_factor = 0
-    set_throttle = speed_multiplier
 
     print("Server started!")
     while True:
@@ -136,12 +135,12 @@ async def main_server():
             if depth_sensor is not None and can_read_depth
             else None
         )
-        yaw = imu.euler[0] if imu is not None else None
-        roll = imu.euler[1] if imu is not None else None
-        pitch = imu.euler[2] - 90 if imu is not None else None
-        x_accel = imu.linear_acceleration[0] if imu is not None else None
-        y_accel = imu.linear_acceleration[1] if imu is not None else None
-        z_accel = imu.linear_acceleration[2] if imu is not None else None
+        yaw = imu.euler[0] if imu is not None
+        roll = imu.euler[1] if imu is not None
+        pitch = imu.euler[2] - 90 if imu is not None
+        x_accel = imu.linear_acceleration[0] if imu is not None
+        y_accel = imu.linear_acceleration[1] if imu is not None
+        z_accel = imu.linear_acceleration[2] if imu is not None
         voltage_5V = power_monitor.voltage_5V() if power_monitor is not None else None
         current_5V = power_monitor.current_5V() if power_monitor is not None else None
         voltage_12V = power_monitor.voltage_12V() if power_monitor is not None else None
@@ -190,9 +189,12 @@ async def main_server():
             pitch_anchor_toggle = joystick_data["buttons"]["south"]
             yaw_anchor_toggle = joystick_data["buttons"]["west"]
             motor_lock_toggle = joystick_data["buttons"]["start"]
-            autonomous_toggle = joystick_data["buttons"]["select"]
-            photo_trigger = joystick_data["buttons"]["left_trigger"]
-            record_depth_trigger = joystick_data["buttons"]["right_trigger"]
+            autonomous_toggle = False
+            photo_trigger = False
+            record_depth_trigger = False
+            #autonomous_toggle = joystick_data["buttons"]["select"]
+            #photo_trigger = joystick_data["buttons"]["left_trigger"]
+            #record_depth_trigger = joystick_data["buttons"]["right_trigger"]
         else:
             x_velocity = 0
             y_velocity = 0
@@ -216,12 +218,10 @@ async def main_server():
 
         # adjust speed mutliplier based on current draw
         if (current_12V > MAX_CURRENT):
-            previous_speed_multiplier = speed_multiplier
             throttle_limit_factor += 0.1
         else:
             throttle_limit_factor = 0
-            speed_multiplier = set_throttle
-	     
+
         # apply factor
         speed_multiplier -= throttle_limit_factor
 
@@ -331,17 +331,14 @@ async def main_server():
                 print("Autonomous task failed! ;-;")
 
         if photo_trigger:
-            try:
-                ImageHandler.start_listening()
-                img, _ = ImageHandler.pump_image()
-                if img is not None:
-                    filename = f"test_images/{time()}.jpg"
-                    cv2.imwrite(filename, img)
-                    print(f"Saved image to {filename}")
-                else:
-                    print("Unable to save image!")
-            except Exception as e:
-                print(f"Photo trigger error: {e}") # Add handling specificities .. . .
+            #ImageHandler.start_listening()
+            #img, _ = ImageHandler.pump_image()
+            #if img is not None:
+                #filename = f"test_images/{time()}.jpg"
+                #cv2.imwrite(filename, img)
+                #print(f"Saved image to {filename}")
+            #else:
+                #print("Unable to save image!")
 
         # before beginning the autonomous coral transplantation task, the ROV should
         # move over to the square and record the depth of the square
@@ -362,12 +359,11 @@ async def main_server():
         if speed_toggle != prev_speed_toggle:
             # make sure the speed doesn't exceed 1
             if speed_toggle > 0 and speed_multiplier < 1:
-                #speed_multiplier += 0.2
-                set_throttle += 0.1
+                speed_multiplier += 0.2
             # make sure the speed doesn't fall below 0
             if speed_toggle < 0 and speed_multiplier >= 0.2:
-                #speed_multiplier -= 0.2
-                set_throttle -= 0.1
+                speed_multiplier -= 0.2
+
             # just in case the speed multiplier ends up out of range
             if speed_multiplier > 1:
                 speed_multiplier = 1
