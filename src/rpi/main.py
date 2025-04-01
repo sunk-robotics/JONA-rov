@@ -3,7 +3,7 @@ import asyncio
 import autonomous
 from autonomous import ImageHandler, CoralTransplanter, CoralReturn, SQUARE_HEIGHT
 import board
-import cv2
+#import cv2
 import json
 from motors import Motors
 from ms5837 import MS5837_02BA
@@ -135,12 +135,12 @@ async def main_server():
             if depth_sensor is not None and can_read_depth
             else None
         )
-        yaw = imu.euler[0] if imu is not None
-        roll = imu.euler[1] if imu is not None
-        pitch = imu.euler[2] - 90 if imu is not None
-        x_accel = imu.linear_acceleration[0] if imu is not None
-        y_accel = imu.linear_acceleration[1] if imu is not None
-        z_accel = imu.linear_acceleration[2] if imu is not None
+        yaw = imu.euler[0] #if imu is not None else None
+        roll = imu.euler[1] #if imu is not None else None
+        pitch = imu.euler[2] - 90 #if imu is not None else None
+        x_accel = imu.linear_acceleration[0] #if imu is not None else None
+        y_accel = imu.linear_acceleration[1] #if imu is not None else None
+        z_accel = imu.linear_acceleration[2] #if imu is not None else None
         voltage_5V = power_monitor.voltage_5V() if power_monitor is not None else None
         current_5V = power_monitor.current_5V() if power_monitor is not None else None
         voltage_12V = power_monitor.voltage_12V() if power_monitor is not None else None
@@ -330,7 +330,7 @@ async def main_server():
                 ImageHandler.stop_listening()
                 print("Autonomous task failed! ;-;")
 
-        if photo_trigger:
+        #if photo_trigger:
             #ImageHandler.start_listening()
             #img, _ = ImageHandler.pump_image()
             #if img is not None:
