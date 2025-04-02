@@ -3,6 +3,7 @@ import asyncio
 import autonomous
 from autonomous import ImageHandler, CoralTransplanter, CoralReturn, SQUARE_HEIGHT
 import board
+#import cv2
 import json
 from motors import Motors
 from ms5837 import MS5837_02BA
@@ -13,80 +14,63 @@ from time import time
 import threading
 import websockets
 from ws_server import WSServer
-import logging
-
-
-#########################################################
-#               JONA-ROV - main.py - v2                 #
-#########################################################
-
 
 # how far the joystick needs to be moved before stabilization is temporarily
+# disabled (0..1)
 destable_thresh = 0.5
 
 # set the current draw limit in amps. 
+# speed_multiplier will be changed to compensate for overdraw.
 MAX_CURRENT = 25 
 
-# ANSI color codes
-COLORS = {
-    "DEBUG": "\033[36m",     # Cyan
-    "INFO": "\033[32m",      # Green
-    "WARNING": "\033[33m",   # Yellow
-    "ERROR": "\033[31m",     # Red
-    "CRITICAL": "\033[1;31m" # Bold Red
-}
-RESET = "\033[0m"  # Reset color
-
-class ColoredFormatter(logging.Formatter):
-    def format(self, record):
-        log_color = COLORS.get(record.levelname, RESET)
-        log_message = super().format(record)
-        return f"{log_color}{log_message}{RESET}"
-
 async def main_server():
-    # Create a logger
-    logger = logging.getLogger("colored_logger")
-    logger.setLevel(logging.DEBUG)
-
-    console_handler = logging.StreamHandler()
-    console_handler.setFormatter(ColoredFormatter("[%(asctime)s] %(levelname)s: %(message)s"))
-
-    logger.addHandler(console_handler)
-
-    # Motor setup:
     motors = Motors()
+    # each motors needs to receive a neutral signal for at least two
+    # seconds, otherwise they won't work
+    await asyncio.sleep(2)
 
-    await asyncio.sleep(2) # wait 2 seconds for the escs to rx neutral sig.
+    depth_sensor = None
+    try:
+        depth_sensor = MS5837_02BA(1)
+        depth_sensor.init()
+    except OSError:
+        print("Unable to connect to depth sensor!")
 
-    depth_sensor = MS5837_02BA(1)
-    depth_sensor.init()
-    imu = adafruit_bno055.BNO055_I2C(board.I2C())
-    power_monitor = PowerMonitor()
-    
+    imu = None
+    try:
+        imu = adafruit_bno055.BNO055_I2C(board.I2C())
+    except OSError:
+        print("Unable to connect IMU!")
+
+    power_monitor = None
+    try:
+        power_monitor = PowerMonitor()
+    except OSError:
+        print("Unable to connect to power monitor!")
+
     depth_anchor = False
-    yaw_anchor = False
-    roll_anchor = False
-    pitch_anchor = False
-
-    # whether the ROV is attempting to autonomously transplant a sample of coral
-    is_autonomous = False
-    coral_transplanter = None
-
-    # multiplier for velocity to set speed limit
-    speed_multiplier = 1
-
     # adjust the y-velocity to have the ROV remain at a constant depth
     depth_pid = PID(proportional_gain=2, integral_gain=0.05, derivative_gain=0.01)
 
+    yaw_anchor = False
     # adjust the yaw velocity to keep the ROV stable
     # TODO - Need to tune the PID parameters
     yaw_pid = RotationalPID(proportional_gain=0.03, integral_gain=0, derivative_gain=0)
 
+    roll_anchor = False
     # adjust the roll velocity to keep the ROV stable
-    roll_pid = RotationalPID(proportional_gain=-0.03, integral_gain=-0.001, derivative_gain=0.0e-4)
+    roll_pid = RotationalPID(
+        proportional_gain=-0.03, integral_gain=-0.001, derivative_gain=0.0e-4
+    )
 
+    pitch_anchor = False
     # adjust the pitch velocity to keep the ROV stable
-    pitch_pid = RotationalPID(proportional_gain=0.02, integral_gain=0.007, derivative_gain=0.005)
+    pitch_pid = RotationalPID(
+        proportional_gain=0.02, integral_gain=0.007, derivative_gain=0.005
+    )
+
+    # multiplier for velocity to set speed limit
+    speed_multiplier = 1
 
     # lock the controls in a certain state, each velocity can have its own lock
     motor_locks = {
@@ -97,6 +81,10 @@ async def main_server():
         "pitch": False,
         "roll": False,
     }
+
+    # whether the ROV is attempting to autonomously transplant a sample of coral
+    is_autonomous = False
+    coral_transplanter = None
 
     locked_velocities = {
         "x": 0,
@@ -121,11 +109,11 @@ async def main_server():
     prev_roll_velocity = 0
     prev_pitch_velocity = 0
 
-    # the recorded depth of the red square for the autonomous brain coral transportation task
+    # the recorded depth of the red square for the autonomous brain coral
+    # transplantation task
     square_depth = None
 
     throttle_limit_factor = 0
-    set_throttle = speed_multiplier
 
     print("Server started!")
     while True:
@@ -147,16 +135,12 @@ async def main_server():
             if depth_sensor is not None and can_read_depth
             else None
         )
-        yaw = imu.euler[0] if imu is not None else None
-        roll = imu.euler[1] if imu is not None else None
-        pitch = imu.euler[2] if imu is not None else None
-
-        if pitch is not None:
-            pitch -= 90
-
-        x_accel = imu.linear_acceleration[0] if imu is not None else None
-        y_accel = imu.linear_acceleration[1] if imu is not None else None
-        z_accel = imu.linear_acceleration[2] if imu is not None else None
+        yaw = imu.euler[0] #if imu is not None else None
+        roll = imu.euler[1] #if imu is not None else None
+        pitch = imu.euler[2] - 90 #if imu is not None else None
+        x_accel = imu.linear_acceleration[0] #if imu is not None else None
+        y_accel = imu.linear_acceleration[1] #if imu is not None else None
+        z_accel = imu.linear_acceleration[2] #if imu is not None else None
         voltage_5V = power_monitor.voltage_5V() if power_monitor is not None else None
         current_5V = power_monitor.current_5V() if power_monitor is not None else None
         voltage_12V = power_monitor.voltage_12V() if power_monitor is not None else None
@@ -205,9 +189,12 @@ async def main_server():
             pitch_anchor_toggle = joystick_data["buttons"]["south"]
             yaw_anchor_toggle = joystick_data["buttons"]["west"]
             motor_lock_toggle = joystick_data["buttons"]["start"]
-            autonomous_toggle = joystick_data["buttons"]["select"]
-            photo_trigger = joystick_data["buttons"]["left_trigger"]
-            record_depth_trigger = joystick_data["buttons"]["right_trigger"]
+            autonomous_toggle = False
+            photo_trigger = False
+            record_depth_trigger = False
+            #autonomous_toggle = joystick_data["buttons"]["select"]
+            #photo_trigger = joystick_data["buttons"]["left_trigger"]
+            #record_depth_trigger = joystick_data["buttons"]["right_trigger"]
         else:
             x_velocity = 0
             y_velocity = 0
@@ -231,12 +218,10 @@ async def main_server():
 
         # adjust speed mutliplier based on current draw
         if (current_12V > MAX_CURRENT):
-            previous_speed_multiplier = speed_multiplier
             throttle_limit_factor += 0.1
         else:
             throttle_limit_factor = 0
-            speed_multiplier = set_throttle
-	     
+
         # apply factor
         speed_multiplier -= throttle_limit_factor
 
@@ -345,8 +330,15 @@ async def main_server():
                 ImageHandler.stop_listening()
                 print("Autonomous task failed! ;-;")
 
-        if photo_trigger:
-            pass
+        #if photo_trigger:
+            #ImageHandler.start_listening()
+            #img, _ = ImageHandler.pump_image()
+            #if img is not None:
+                #filename = f"test_images/{time()}.jpg"
+                #cv2.imwrite(filename, img)
+                #print(f"Saved image to {filename}")
+            #else:
+                #print("Unable to save image!")
 
         # before beginning the autonomous coral transplantation task, the ROV should
         # move over to the square and record the depth of the square
@@ -367,12 +359,11 @@ async def main_server():
         if speed_toggle != prev_speed_toggle:
             # make sure the speed doesn't exceed 1
             if speed_toggle > 0 and speed_multiplier < 1:
-                #speed_multiplier += 0.2
-                set_throttle += 0.1
+                speed_multiplier += 0.2
             # make sure the speed doesn't fall below 0
             if speed_toggle < 0 and speed_multiplier >= 0.2:
-                #speed_multiplier -= 0.2
-                set_throttle -= 0.1
+                speed_multiplier -= 0.2
+
             # just in case the speed multiplier ends up out of range
             if speed_multiplier > 1:
                 speed_multiplier = 1
@@ -481,15 +472,21 @@ async def main_server():
 
 def main():
     loop = asyncio.get_event_loop()
-
+    #  auto_ws_server = websockets.serve(
+    #      autonomous.WSServer.handler, "0.0.0.0", 3009, ping_interval=None
+    #  )
     ws_server = websockets.serve(WSServer.handler, "0.0.0.0", 8765, ping_interval=None)
     asyncio.ensure_future(ws_server)
-   
+    #  asyncio.ensure_future(auto_ws_server)
+    #  asyncio.ensure_future(ImageHandler.image_handler("ws://192.168.1.9:3000"))
     threading.Thread(target=ImageHandler.image_processer, daemon=True).start()
     threading.Thread(
         target=ImageHandler.image_receiver, args=("ws://192.168.1.9:3000",), daemon=True
     ).start()
 
+    #  threading.Thread(
+    #      target=ImageHandler.image_handler, args=("ws://192.168.1.9:3000",), daemon=True
+    #  ).start()
     asyncio.ensure_future(main_server())
     loop.run_forever()
 
@@ -498,4 +495,4 @@ if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
-        print("Keyboard Interrupt, Exiting")
+        print("")
