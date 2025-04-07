@@ -1,15 +1,12 @@
 import adafruit_bno055
 import asyncio
-import autonomous
 from autonomous import ImageHandler, CoralTransplanter, CoralReturn, SQUARE_HEIGHT
 import board
 import json
 from motors import Motors
 from ms5837 import MS5837_02BA
-from orientation import quaternion_to_euler
 from pid import PID, RotationalPID
 from power_monitoring import PowerMonitor
-from time import time
 import threading
 import websockets
 from ws_server import WSServer
@@ -27,30 +24,40 @@ destable_thresh = 0.5
 # set the current draw limit in amps. 
 MAX_CURRENT = 25 
 
-# ANSI color codes
+# ASCII color codes
 COLORS = {
-    "DEBUG": "\033[36m",     # Cyan
-    "INFO": "\033[32m",      # Green
-    "WARNING": "\033[33m",   # Yellow
-    "ERROR": "\033[31m",     # Red
-    "CRITICAL": "\033[1;31m" # Bold Red
+    "DEBUG": "\033[94m",    # Blue
+    "INFO": "\033[92m",     # Green
+    "WARNING": "\033[93m",  # Yellow
+    "ERROR": "\033[91m",    # Red
+    "CRITICAL": "\033[95m", # Magenta
+    "RESET": "\033[0m"      # Reset color
 }
-RESET = "\033[0m"  # Reset color
 
 class ColoredFormatter(logging.Formatter):
     def format(self, record):
-        log_color = COLORS.get(record.levelname, RESET)
-        log_message = super().format(record)
-        return f"{log_color}{log_message}{RESET}"
+        log_color = COLORS.get(record.levelname, COLORS["RESET"])
+        log_msg = f"{log_color}{record.levelname}: {record.msg}{COLORS['RESET']}"
+        return log_msg
+
 
 async def main_server():
     # Create a logger
-    logger = logging.getLogger("colored_logger")
-    logger.setLevel(logging.DEBUG)
+    logger = logging.getLogger("ColoredLogger")
+    logger.setLevel(logging.DEBUG)  # Log everything
 
+    # File Handler (Plain Text)
+    file_handler = logging.FileHandler("jona.log", mode="a")  # Append to log file
+    file_formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+    file_handler.setFormatter(file_formatter)
+
+    # Console Handler (With Colors)
     console_handler = logging.StreamHandler()
-    console_handler.setFormatter(ColoredFormatter("[%(asctime)s] %(levelname)s: %(message)s"))
+    console_formatter = ColoredFormatter()
+    console_handler.setFormatter(console_formatter)
 
+    # Add handlers to the logger
+    logger.addHandler(file_handler)
     logger.addHandler(console_handler)
 
     # Motor setup:
@@ -127,7 +134,7 @@ async def main_server():
     throttle_limit_factor = 0
     set_throttle = speed_multiplier
 
-    print("Server started!")
+    logging.info("JONA ROV - COPYRIGHT SUNK ROBOTICS 2025")
     while True:
         joystick_data = WSServer.pump_joystick_data()
         can_read_depth = True
@@ -136,12 +143,12 @@ async def main_server():
                 depth_sensor.read()
             except OSError:
                 can_read_depth = False
-                print("Unable to read from depth sensor!")
+                logging.error("Unable to read from depth sensor!")
 
         # read sensor information
         internal_temp = imu.temperature if imu is not None else None
         external_temp = depth_sensor.temperature() if depth_sensor is not None else None
-        cpu_temp = None
+
         depth = (
             depth_sensor.depth()
             if depth_sensor is not None and can_read_depth
@@ -159,7 +166,7 @@ async def main_server():
         z_accel = imu.linear_acceleration[2] if imu is not None else None
         voltage_5V = power_monitor.voltage_5V() if power_monitor is not None else None
         current_5V = power_monitor.current_5V() if power_monitor is not None else None
-        voltage_12V = power_monitor.voltage_12V() if power_monitor is not None else None
+        # voltage_12V = power_monitor.voltage_12V() if power_monitor is not None else None
         current_12V = power_monitor.current_12V() if power_monitor is not None else None
 
         # send data to web client
@@ -176,7 +183,7 @@ async def main_server():
                 "z_accel": z_accel,
                 "voltage_5V": voltage_5V,
                 "current_5V": current_5V,
-                "voltage_12V": voltage_12V,
+                "voltage_12V": 0,
                 "current_12V": current_12V,
                 "speed_multiplier": speed_multiplier,
                 "depth_anchor_enabled": depth_anchor,
@@ -304,13 +311,13 @@ async def main_server():
             pitch_velocity = pitch_pid.compute(pitch)
 
         if motor_locks["x"]:
-            print("x")
+            logging.debug("X-axis motor lock")
             x_velocity = locked_velocities["x"]
         if motor_locks["y"]:
-            print("y")
+            logging.debug("Y-axis motor lock")
             y_velocity = locked_velocities["y"]
         if motor_locks["z"]:
-            print("z")
+            logging.debug("Z-axis motor lock")
             z_velocity = locked_velocities["z"]
         if motor_locks["yaw"]:
             yaw_velocity = locked_velocities["yaw"]
@@ -321,29 +328,7 @@ async def main_server():
 
         # autonomous code should take precedence
         if is_autonomous:
-            (
-                x_velocity,
-                y_velocity,
-                z_velocity,
-                yaw_velocity,
-                roll_velocity,
-                pitch_velocity,
-                return_code,
-            ) = coral_transplanter.next_step(depth, yaw, roll, pitch)
-            if return_code == CoralReturn.FINISHED:
-                is_autonomous = False
-                ImageHandler.stop_listening()
-                # stabilize after finishing
-                depth_anchor = True
-                pitch_anchor = True
-                depth_pid.update_set_point(depth)
-                pitch_pid.update_set_point(pitch)
-                print("Autonomous task completed!")
-
-            elif return_code == CoralReturn.FAILED:
-                is_autonomous = False
-                ImageHandler.stop_listening()
-                print("Autonomous task failed! ;-;")
+            pass
 
         if photo_trigger:
             pass
@@ -378,7 +363,7 @@ async def main_server():
                 speed_multiplier = 1
             elif speed_multiplier < 0:
                 speed_multiplier = 0
-            print(f"Speed Multiplier: {speed_multiplier}")
+            logging.info(f"Speed Multiplier Setting: {speed_multiplier}x")
             prev_speed_toggle = speed_toggle
 
         # toggle the depth anchor
@@ -388,42 +373,42 @@ async def main_server():
             and not prev_depth_anchor_toggle
         ):
             if depth_anchor:
-                print("Vertical anchor disabled!")
+                logging.info("Vertical anchor disabled.")
                 depth_anchor = False
             elif depth_sensor is not None:
                 depth_anchor = True
                 depth_pid.update_set_point(depth_sensor.depth())
-                print(f"Vertical anchor enabled at: {depth_pid.set_point} m")
+                logging.info(f"Vertical anchor enabled at: {depth_pid.set_point} m")
 
         # toggle the yaw anchor
         if imu is not None and yaw_anchor_toggle and not prev_yaw_anchor_toggle:
             if yaw_anchor:
-                print("Yaw anchor disabled!")
+                logging.info("Yaw anchor disabled!")
                 yaw_anchor = False
             elif depth_sensor is not None:
                 yaw_anchor = True
                 yaw_pid.update_set_point(yaw)
-                print(f"Yaw anchor enabled at: {yaw_pid.set_point}°")
+                logging.info(f"Yaw anchor enabled at: {yaw_pid.set_point}°")
 
         # toggle the roll anchor
         if imu is not None and roll_anchor_toggle and not prev_roll_anchor_toggle:
             if roll_anchor:
-                print("Roll anchor disabled!")
+                logging.info("Roll anchor disabled!")
                 roll_anchor = False
             elif depth_sensor is not None:
                 roll_anchor = True
                 roll_pid.update_set_point(roll)
-                print(f"Roll anchor enabled at: {roll_pid.set_point}°")
+                logging.info(f"Roll anchor enabled at: {roll_pid.set_point}°")
 
         # toggle the pitch anchor
         if imu is not None and pitch_anchor_toggle and not prev_pitch_anchor_toggle:
             if pitch_anchor:
-                print("Pitch anchor disabled!")
+                logging.info("Pitch anchor disabled!")
                 pitch_anchor = False
             elif depth_sensor is not None:
                 pitch_anchor = True
                 pitch_pid.update_set_point(pitch)
-                print(f"Pitch anchor enabled at: {pitch_pid.set_point}°")
+                logging.info(f"Pitch anchor enabled at: {pitch_pid.set_point}°")
 
         # toggle the motor lock
         if motor_lock_toggle and not prev_motor_lock_toggle:
@@ -436,7 +421,7 @@ async def main_server():
                     "pitch": False,
                     "roll": False,
                 }
-                print("Motor lock disabled!")
+                logging.info("Motor lock disabled!")
             else:
                 motor_locks = {
                     "x": True,
@@ -452,14 +437,14 @@ async def main_server():
                 locked_velocities["yaw"] = yaw_velocity
                 locked_velocities["pitch"] = pitch_velocity
                 locked_velocities["roll"] = roll_velocity
-                print("Motor lock enabled!")
+                logging.info("Motor lock enabled!")
 
         # toggle the autonomous control
         if autonomous_toggle and not prev_autonomous_toggle:
             if is_autonomous:
                 ImageHandler.stop_listening()
                 is_autonomous = False
-                print("Autonomous mode disabled!")
+                logging.critical("Autonomous mode disabled!")
             else:
                 ImageHandler.start_listening()
                 is_autonomous = True
@@ -467,7 +452,7 @@ async def main_server():
                     coral_transplanter = CoralTransplanter(square_depth, yaw)
                 else:
                     coral_transplanter = CoralTransplanter(depth - SQUARE_HEIGHT, yaw)
-                print("Autonomous mode enabled!")
+                logging.critical("Autonomous mode enabled!")
 
         prev_depth_anchor_toggle = depth_anchor_toggle
         prev_yaw_anchor_toggle = yaw_anchor_toggle
@@ -498,4 +483,4 @@ if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
-        print("Keyboard Interrupt, Exiting")
+        logging.critical("Keyboard Interrupt, Exiting")
