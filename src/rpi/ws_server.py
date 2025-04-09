@@ -11,6 +11,9 @@ class WSServer:
     # web client websocket object used to transmit non-image data (sensor data)
     web_client_main = None
 
+    # debug connection.
+    debug_client = None
+
     # incoming joystick data, can be accessed outside of the handler function
     joystick_data = None
 
@@ -38,6 +41,19 @@ class WSServer:
                 break
             except websockets.ConnectionClosed:
                 print("Web client disconnected!")
+    
+    @classmethod
+    async def debug_client_handler(cls, websocket, path):
+        cls.debug_client = websocket
+        print("Debug client connected!")
+        while True:
+            try:
+                await websocket.wait_closed()
+                print("Debug client disconnected!")
+                cls.debug_client = None
+                break
+            except websockets.ConnectionClosed:
+                print("Debug client disconnected!")
 
     @classmethod
     async def handler(cls, websocket, path):
@@ -59,3 +75,5 @@ class WSServer:
             await cls.joystick_handler(websocket, path)
         elif client_type == "web_client_main":
             await cls.web_client_main_handler(websocket, path)
+        elif client_type == "debug_client":
+            await cls.debug_client_handler(websocket, path)

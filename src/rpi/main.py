@@ -13,6 +13,7 @@ from ws_server import WSServer
 import logging
 
 
+
 #########################################################
 #               JONA-ROV - main.py - v2                 #
 #########################################################
@@ -77,7 +78,6 @@ async def main_server():
 
     # whether the ROV is attempting to autonomously transplant a sample of coral
     is_autonomous = False
-    coral_transplanter = None
 
     # multiplier for velocity to set speed limit
     speed_multiplier = 1
@@ -193,7 +193,19 @@ async def main_server():
                 "motor_lock_enabled": motor_locks,
                 "throttle_limit_factor": throttle_limit_factor,
             }
-            await WSServer.web_client_main.send(json.dumps(status_info))
+
+            status_info = json.dumps(status_info)
+
+            #try:
+            await WSServer.web_client_main.send(status_info)
+            #except Exception as e:
+                #print("Main Web Client Connection Error: ", e) # TODO Make this work and not have this problem
+
+            if WSServer.debug_client is not None:
+                try:
+                    await WSServer.debug_client.send(status_info) # TODO same here as above todo.
+                except Exception as e:
+                    print("Debug Client Connection Error: ", e)
 
         # set all the velocities to 0 if there's no joystick connected
         if joystick_data:
