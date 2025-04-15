@@ -93,7 +93,7 @@ async def main_server():
     roll_pid = RotationalPID(proportional_gain=-0.03, integral_gain=-0.001, derivative_gain=0.0e-4)
 
     # adjust the pitch velocity to keep the ROV stable
-    pitch_pid = RotationalPID(proportional_gain=0.02, integral_gain=0.007, derivative_gain=0.005)
+    pitch_pid = RotationalPID(proportional_gain=0.03, integral_gain=0, derivative_gain=0)
 
     # lock the controls in a certain state, each velocity can have its own lock
     motor_locks = {
@@ -154,6 +154,7 @@ async def main_server():
             if depth_sensor is not None and can_read_depth
             else None
         )
+
         yaw = imu.euler[0] if imu is not None else None
         roll = imu.euler[1] if imu is not None else None
         pitch = imu.euler[2] if imu is not None else None
@@ -288,12 +289,12 @@ async def main_server():
 
         # re-enable the pitch anchor at a new angle when the pitch velocity falls below the
         # threshold
-        if (
-            pitch_anchor
-            and abs(pitch_velocity) < destable_thresh
-            and abs(prev_pitch_velocity) > destable_thresh
-        ):
-            pitch_pid.update_set_point(pitch)
+        #if (
+        #    pitch_anchor
+        #    and abs(pitch_velocity) < destable_thresh
+        #    and abs(prev_pitch_velocity) > destable_thresh
+        #):
+        #    pitch_pid.update_set_point(pitch)
 
         prev_z_velocity = z_velocity
         prev_yaw_velocity = yaw_velocity

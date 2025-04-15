@@ -26,7 +26,7 @@ onMounted(() => {
 let measureStore = useMeasurementStore()
 
 // length of the reference object in centimeters
-const REF_OBJ_LEN = 32;
+const REF_OBJ_LEN = 30;
 
 type Fields = "pixPerInch" | "leftSide" | "rightSide" | "topSide" | "fullLen" | "fullHgt" | null
 let lenObj: Ref<Measurements> = ref({
